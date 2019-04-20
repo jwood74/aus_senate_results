@@ -7,12 +7,13 @@ require_relative 'ballot'
 require_relative 'candidates'
 
 state = 'QLD'
+candidates_to_elect = 12
 backup = false
 
 download_candidates
-download_results('QLD')
+download_results(state)
 
-ballot = Ballot.new(12,'QLD')
+ballot = Ballot.new(candidates_to_elect,state)
 
 # File.open("ballot.b","wb") {|f| f.write(Marshal.dump(ballot))}
 # ballot = Marshal.load(File.read('ballot.b'))
