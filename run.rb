@@ -30,13 +30,12 @@ end
 ballot.print_first_preference
  
 round = 0
-
 until ballot.candidates_elected == ballot.candidates_to_elect
     round += 1
     puts "** COUNT #{round} **"
  
     ballot.candidates_to_distribute << check_for_elected(ballot,round)
-    
+
     next if round == 1
  
     if ballot.candidates_elected == ballot.candidates_to_elect
@@ -53,6 +52,5 @@ until ballot.candidates_elected == ballot.candidates_to_elect
         distribute_votes(ballot,round,lowest)
         ballot.print_current_votes
     end
-    round += 1
     exit if round == 3
 end
