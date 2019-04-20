@@ -16,6 +16,7 @@ def download_results(state)
 end
 
 def process_ballot_papers(state,tickets)
+	puts "Processing the ballot papers"
 
 	filename = "aec-senate-formalpreferences-20499-#{state}.csv"
 	line_count = `wc -l "#{filename}"`.strip.split(' ')[0].to_i
@@ -45,7 +46,7 @@ def process_ballot_papers(state,tickets)
 	end
 
 	# File.open("ballots_last.b","wb") {|f| f.write(Marshal.dump(ballot_papers))}
-	puts "There are #{ballot_papers.count} ballot_papers."
+	puts "There are #{ballot_papers.count} ballot papers."
 	return ballot_papers
 end
 
@@ -83,37 +84,111 @@ def load_ballots
 	return ballots
 end
 
-def count_pref(ballots, line)
-	results = Array.new
-	def results.[](i)
-		fetch(i) {0}
-	end
-	ballots.each do |b|
-		if line == 'btl' and b.btl_formal
-			results[b.btl.find_index(1)+1] += 1
-		elsif line == 'atl' and b.atl_formal
-			results[b.atl.find_index(1)+1] += 1
-		end
-	end
-	return results
+def check_for_elected(ballot,round)
+    elected = Array.new
+    display_candidates = ballot.candidates.sort_by { |x| x.cur_votes }.reverse
+ 
+    display_candidates.each do |c|
+        if c.excluded || c.elected
+            next
+        end
+        if c.cur_votes >= ballot.quota
+            c.elected = true
+            ballot.candidates_elected += 1
+            c.elected_order = ballot.candidates_elected
+            elected << c
+            puts "Candidate #{c.surname} has been elected."
+        end
+    end
+    return elected
 end
-			
-def random_thing(ballots,pos)
-	cnt = 0
-	ballots.each do |b|
-		# begin
-			if b.btl_formal
-				# if b.btl[0] == "1" || b.btl[0] == "*" || b.btl[0] == "/"
-				if b.btl[pos] == 1
-					# p b.btl
-					cnt += 1
-				end
-			end
-		# rescue => error
-		# 	puts error
-		# 	p b
-		# 	exit
-		# end
+
+def find_lowest(ballot)
+    lowest = ""
+    lowest_votes = Float::INFINITY
+ 
+    ballot.candidates.each do |c|
+        if c.excluded || c.elected
+            next
+        end
+        if c.cur_votes < lowest_votes
+            lowest_votes = c.cur_votes
+            lowest = c
+        end
+    end
+    lowest.excluded = true
+    ballot.cur_candidate_count -= 1
+    # puts "Candidate #{lowest.name} has the least votes. Their votes will now be distributed."
+    return lowest
+end
+ 
+def distribute_votes(ballot,round,candidate)
+ 
+	puts "Distributing the votes of #{candidate.surname}."
+	puts "candidate.order #{candidate.order}"
+	bar = ProgressBar.new(ballot.votes.count)
+ 
+    cnt = 0.0
+    tmp = []
+	transfer_value = 1.0
+	rand = 0
+ 
+	ballot.votes.each do |v|
+		bar.increment!
+		if v.is_exhaust
+            next
+		end
+		if v.cur_candidate == candidate.order
+			cur_pref = v.btl[candidate.order]
+ 
+			ballot.candidates.count.times do |t|
+				next_pref = (cur_pref + 1 + t)
+				if not v.btl.count(next_pref) == 1
+                    v.is_exhaust = true
+                    v.cur_candidate = nil
+                    ballot.current_exhaust += v.value
+                    # cnt -= 1
+                    break
+                end
+				if ballot.candidates[v.btl.index(next_pref)].excluded || ballot.candidates[v.btl.index(next_pref)].elected
+                    next
+				else
+                    # ballot.candidates[v.order.index(next_pref)].cur_votes += 1
+                    v.cur_candidate = v.btl.index(next_pref)
+                    tmp << v
+                    # cnt += 1
+                    break
+                end
+ 
+            end
+		else
+            cnt += 1
+        end
+    end
+ 
+	if candidate.elected
+		puts "candidate.cur_votes #{candidate.cur_votes}"
+		puts "ballot.quota #{ballot.quota}"
+		puts "tmp.count #{tmp.count}"
+        transfer_value = (candidate.cur_votes - ballot.quota) / candidate.cur_votes
+		candidate.cur_votes = ballot.quota
+		
+		puts "and the transfer value is #{transfer_value}"
+ 
+        tmp.each do |t|
+            t.value = (transfer_value )#* t.value)
+            ballot.candidates[t.cur_candidate].cur_votes += (transfer_value )#* t.value)
+        end
+    else
+        candidate.cur_votes = 0
+ 
+        tmp.each do |t|
+            ballot.candidates[t.cur_candidate].cur_votes += t.value
+        end
 	end
-	puts "There are #{cnt} votes!"
+	puts "ballot.candidates[17]"
+	p ballot.candidates[17]
+ 
+    cnt += tmp.count
+    ballot.current_total = cnt
 end

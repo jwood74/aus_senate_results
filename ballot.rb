@@ -8,10 +8,12 @@ class Ballot
 		@quota = calculate_quota
 		@candidates_elected = 0
 		@cur_candidate_count = @candidates.count
+		@current_exhaust = 0.0
+		@candidates_to_distribute = []
 	end
 
-	attr_reader :quota, :candidates_elected, :current_total, :tickets
-	attr_accessor :votes, :candidates
+	attr_reader :quota, :tickets, :candidates_to_elect
+	attr_accessor :votes, :candidates, :candidates_elected, :current_exhaust, :current_total, :cur_candidate_count, :candidates_to_distribute
 
 	def calculate_quota
 		return (@current_total / (@candidates_to_elect + 1)) + 1
@@ -31,7 +33,7 @@ class Ballot
 	end
 
 	def process_atl_preferences
-		puts "processing the atl preferences"
+		puts "Processing the atl preferences"
 		bar = ProgressBar.new(self.current_total)
 		self.votes.each do |v|
 			bar.increment!
@@ -56,7 +58,7 @@ class Ballot
 						next if c.ticket_position != ticket_pos
 						if preference == 1
 							c.cur_votes += 1
-							v.cur_candidate = box
+							v.cur_candidate = c.order
 						end
 						v.btl[c.order] = preference
 						ticket_pos += 1
@@ -79,6 +81,21 @@ class Ballot
 		puts "#{self.current_total} votes remaining in count"
 		puts
 	end
+
+	def print_current_votes
+ 
+		display_candidates = self.candidates.sort_by { |x| x.cur_votes + (x.elected_order * 1000)}.reverse
+	 
+		display_candidates.each do |c|
+			if c.excluded
+				next
+			end
+			puts "  Candidate #{c.surname} is on #{c.cur_votes.round(1)} votes. #{' ## elected ' + c.elected_order.to_s + ' ##' unless c.elected == false}"
+					# (or #{(c.cur_votes.to_f / ballot.current_total * 100).round(2)}%)
+		end
+		puts "#{self.current_total} votes remaining in count. #{self.current_exhaust} votes have exhausted. #{self.cur_candidate_count} candidates remaining"
+		puts
+	end
 end
 
 
@@ -88,7 +105,7 @@ class BallotPaper
 		@booth_id = booth_id.to_i
 		@batch = batch.to_i
 		@paper = paper.to_i
-		@btl = fix_pref(prefs.split(",")[38..159])
+		@btl = fix_pref(prefs.split(",")[tickets..-1])
 		@atl = fix_pref(prefs.split(",")[0..(tickets - 1)])
 		@btl_formal = check_btl_formal
 		@atl_formal = check_atl_formal
