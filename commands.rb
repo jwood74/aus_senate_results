@@ -1,3 +1,18 @@
+def setup(load_in)
+	if load_in
+		puts "Loading the file"
+		ballot = Marshal.load(File.read('ballot.b'))
+	else
+		ballot = Ballot.new(candidates_to_elect,state)
+	
+		ballot.process_btl_first_preference
+		ballot.process_atl_preferences
+	
+		puts "Writing the file to disc"
+		File.open("ballot.b","wb") {|f| f.write(Marshal.dump(ballot))}
+	end
+end
+
 def download_results(state)
     pn = Pathname.new("aec-senate-formalpreferences-20499-#{state}.csv")
 
