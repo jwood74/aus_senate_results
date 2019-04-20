@@ -21,7 +21,8 @@ download_results(state)
 # File.open("ballot.b","wb") {|f| f.write(Marshal.dump(ballot))}
 ballot = Marshal.load(File.read('ballot.b'))
 
- 
+ballot.print_first_preference
+
 =begin
 
 print_current_votes(ballot)

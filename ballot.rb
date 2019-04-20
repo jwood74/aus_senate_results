@@ -74,7 +74,7 @@ class Ballot
 		display_candidates = self.candidates.sort_by { |x| x.cur_votes }.reverse
 	 
 		display_candidates.each do |c|
-			puts "  Candidate #{c.surname} received #{c.cur_votes} first preference votes"
+			puts "  Candidate #{c.surname} received #{c.cur_votes.round} first preference votes"
 		end
 		puts "#{self.current_total} votes remaining in count"
 		puts
