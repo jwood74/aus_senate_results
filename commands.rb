@@ -15,7 +15,7 @@ def download_results(state)
 	end
 end
 
-def process_ballot_papers(state)
+def process_ballot_papers(state,tickets)
 
 	filename = "aec-senate-formalpreferences-20499-#{state}.csv"
 	line_count = `wc -l "#{filename}"`.strip.split(' ')[0].to_i
@@ -27,9 +27,15 @@ def process_ballot_papers(state)
 		if ln == 1 || ln == 2
 			next
 		end
-		b = BallotPaper.new(row[0],row[2],row[3],row[4],row[5])
-	 	ballot_papers << b
-	 	bar.increment!
+		# next unless row[2] == "1" && row[3] == "26" && row[4] == "47"
+
+		b = BallotPaper.new(row[0],row[2],row[3],row[4],row[5],tickets)
+		ballot_papers << b
+		bar.increment!
+		 
+		if $debug && ln == 2000
+			break
+		end
 
 	 	# if ln % 200000 == 0
 	 	# 	File.open("ballots_#{ln}.b","wb") {|f| f.write(Marshal.dump(ballot_papers))}
@@ -75,10 +81,6 @@ def load_ballots
 	bar.increment!(123166)
 	puts ballots.count.to_s + " loaded"
 	return ballots
-end
-
-def process_btl_first_preference(ballots)
-
 end
 
 def count_pref(ballots, line)

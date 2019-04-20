@@ -17,12 +17,14 @@ end
 
 def process_candidates(state)
     candidates = Array.new
+    cnt = 0
     
     CSV.foreach("aec-senate-candidateinformation-20499.csv").with_index(1) do |row, ln|
-        unless row[2] == 'QLD' && row[1] == 'S'
+        unless row[2] == state && row[1] == 'S'
             next
         end
-        candidates << Candidate.new(row[4],row[5],row[6],row[8])
+        candidates << Candidate.new(cnt,row[4],row[5],row[6],row[8])
+        cnt += 1
     end
     puts "There are #{candidates.count} candidates."
     return candidates
@@ -43,9 +45,9 @@ def process_tickets(candidates)
 end
 
 class Candidate
-    def initialize(ticket, ticket_position, surname, party)
+    def initialize(cnt, ticket, ticket_position, surname, party)
         @ticket = ticket
-        @ticket_position = ticket_position
+        @ticket_position = ticket_position.to_i
         @surname = surname
         @party = party
         @first_pref = 0
@@ -53,7 +55,9 @@ class Candidate
         @excluded = false
         @elected = false
         @elected_order = 0
+        @order = cnt
     end
 
-    attr_reader :ticket
+    attr_reader :ticket, :surname, :ticket_position, :order
+    attr_accessor :first_pref, :cur_votes, :excluded, :elected, :elected_order
 end

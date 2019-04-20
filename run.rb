@@ -8,21 +8,18 @@ require_relative 'candidates'
 
 state = 'QLD'
 candidates_to_elect = 12
-backup = false
+$debug = false
 
 download_candidates
 download_results(state)
 
-ballot = Ballot.new(candidates_to_elect,state)
+# ballot = Ballot.new(candidates_to_elect,state)
+
+# ballot.process_btl_first_preference
+# ballot.process_atl_preferences
 
 # File.open("ballot.b","wb") {|f| f.write(Marshal.dump(ballot))}
-# ballot = Marshal.load(File.read('ballot.b'))
-
-# process blt first pref
-
-# process atl first pref
-
-
+ballot = Marshal.load(File.read('ballot.b'))
 
  
 =begin
@@ -30,7 +27,7 @@ ballot = Ballot.new(candidates_to_elect,state)
 print_current_votes(ballot)
  
 round = 0
-until ballot.has_winner || ballot.candidates_elected == ballot.candidates_to_elect
+until ballot.candidates_elected == ballot.candidates_to_elect
     puts "** ROUND #{round} **"
  
     elected = check_for_elected(ballot,round)
