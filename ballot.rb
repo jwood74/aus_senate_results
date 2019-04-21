@@ -9,11 +9,11 @@ class Ballot
 		@candidates_elected = 0
 		@cur_candidate_count = @candidates.count
 		@current_exhaust = 0.0
-		@candidates_to_distribute = []
+		@max_bundle = 1
 	end
 
 	attr_reader :quota, :tickets, :candidates_to_elect
-	attr_accessor :votes, :candidates, :candidates_elected, :current_exhaust, :current_total, :cur_candidate_count, :candidates_to_distribute
+	attr_accessor :votes, :candidates, :candidates_elected, :current_exhaust, :current_total, :cur_candidate_count, :max_bundle
 
 	def calculate_quota
 		return (@current_total / (@candidates_to_elect + 1)) + 1
@@ -27,6 +27,7 @@ class Ballot
 			t = v.btl.find_index(1)
 			self.candidates[t].first_pref += 1
 			self.candidates[t].cur_votes += 1
+			self.candidates[t].cur_papers += 1
 			v.cur_candidate = t
 			
 		end
@@ -58,6 +59,7 @@ class Ballot
 						next if c.ticket_position != ticket_pos
 						if preference == 1
 							c.cur_votes += 1
+							c.cur_papers += 1
 							v.cur_candidate = c.order
 						end
 						v.btl[c.order] = preference
@@ -82,18 +84,60 @@ class Ballot
 		puts
 	end
 
-	def print_current_votes
+	def print_current_votes(round)
+
+		puts "Subtotal" unless round == 1
+		puts
  
 		display_candidates = self.candidates.sort_by { |x| x.cur_votes + (x.elected_order * 1000)}.reverse
 	 
 		display_candidates.each do |c|
-			if c.excluded
+			if c.excluded && c.distributed
 				next
 			end
-			puts "  Candidate #{c.surname} is on #{c.cur_votes.round(1)} votes. #{' ## elected ' + c.elected_order.to_s + ' ##' unless c.elected == false}"
+			puts "  Candidate #{c.surname} is on #{c.cur_votes.round(1)} votes (#{c.cur_papers} ballots). #{' ## elected ' + c.elected_order.to_s + ' ##' unless c.elected == false}"
 					# (or #{(c.cur_votes.to_f / ballot.current_total * 100).round(2)}%)
 		end
-		puts "#{self.current_total} votes remaining in count. #{self.current_exhaust} votes have exhausted. #{self.cur_candidate_count} candidates remaining"
+		puts
+		puts "#{self.current_total.round(0)} votes remaining in count. #{self.current_exhaust} votes have exhausted. #{self.cur_candidate_count} candidates remaining. Current Quota - #{self.quota}"
+		puts
+	end
+
+	def print_distributed_votes(round)
+
+		display_candidates = self.candidates.sort_by { |x| x.cur_votes + (x.elected_order * 1000)}.reverse
+		exh = 0
+		exh_v = 0.0
+	
+		puts
+		display_candidates.each do |c|
+			if c.excluded || (c.elected && c.elected_round < round)
+				next
+			end
+			tmp = 0
+			jmp = 0.0
+			self.votes.each do |v|
+				if v.round_last_updated == round
+					if v.cur_candidate == c.order
+						tmp += 1
+						jmp += v.value
+						jmp = jmp.round(3)
+					end
+				end
+			end
+			puts "	Candidate #{c.surname} received #{tmp} votes (worth #{jmp})"
+		end
+	
+		self.votes.each do |v|
+			if v.round_last_updated == round
+				if v.is_exhaust
+					exh += 1
+					exh_v += v.value
+				end
+			end
+		end
+	
+		puts "	Exhuasted #{exh} votes (worth #{exh_v.round(3)})"
 		puts
 	end
 end
@@ -112,10 +156,12 @@ class BallotPaper
 		@cur_candidate = nil
 		@is_exhaust = false
 		@value = 1.0
+		@round_last_updated = 1
+		@bundle = 1
 	end
 
 	attr_reader :btl_formal, :paper, :batch, :atl_formal, :atl
-	attr_accessor :cur_candidate, :is_exhaust, :value, :btl
+	attr_accessor :cur_candidate, :is_exhaust, :value, :btl, :round_last_updated, :bundle
 
 	def fix_pref(pref)
 		result = Array.new

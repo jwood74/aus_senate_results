@@ -11,7 +11,7 @@ Using this data, and systems like this one, the public can recreate the senate c
 + Execute run.rb
 
 # ToDo
-+ Implement bundles for the distributions
++ optimise atl distribution
 + Allow a candidate to be excluded from beginning (as was the case when candidates became ineligible)
 + Pretty output of final result
 + Show output for each step of count

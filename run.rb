@@ -14,32 +14,27 @@ load_in = false
 download_candidates
 download_results(state)
 
-ballot = setup(load_in)
-
-ballot.print_first_preference
+ballot = setup(load_in, candidates_to_elect, state)
  
-round = 0
+round = 1
 until ballot.candidates_elected == ballot.candidates_to_elect
-    round += 1
+
     puts "** COUNT #{round} **"
  
-    ballot.candidates_to_distribute << check_for_elected(ballot,round)
-
-    next if round == 1
+    check_for_elected(ballot,round)
  
     if ballot.candidates_elected == ballot.candidates_to_elect
         break
     end
 
-    if ballot.candidates_to_distribute.count > 0
-        e = ballot.candidates_to_distribute.delete_at(0)
-        distribute_votes(ballot,round,e)
-        ballot.print_current_votes
-        ballot.candidates_to_distribute << check_for_elected(ballot,round)
-    else
-        lowest = find_lowest(ballot)
-        distribute_votes(ballot,round,lowest)
-        ballot.print_current_votes
+    unless round == 1
+        distribute = who_to_distribute(ballot)
+        distribute_votes(ballot,round,distribute)
+        ballot.print_distributed_votes(round)
     end
+
+    ballot.print_current_votes(round)
+    
+    round += 1
     exit if round == 3
 end

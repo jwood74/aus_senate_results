@@ -19,7 +19,7 @@ def process_candidates(state)
     candidates = Array.new
     cnt = 0
     
-    CSV.foreach("aec-senate-candidateinformation-20499.csv").with_index(1) do |row, ln|
+    CSV.foreach("aec-senate-candidateinformation-20499.csv") do |row|
         unless row[2] == state && row[1] == 'S'
             next
         end
@@ -52,12 +52,17 @@ class Candidate
         @party = party
         @first_pref = 0
         @cur_votes = @first_pref.to_f
+        @cur_papers = @first_pref
         @excluded = false
         @elected = false
         @elected_order = 0
+        @elected_round = 0
+		@elected_bundle = 0
         @order = cnt
+        @distributed = false
     end
 
     attr_reader :ticket, :surname, :ticket_position, :order
-    attr_accessor :first_pref, :cur_votes, :excluded, :elected, :elected_order
+    attr_accessor :first_pref, :cur_votes, :excluded, :elected, 
+        :elected_order, :cur_papers, :distributed, :distributed, :elected_bundle, :elected_round
 end
