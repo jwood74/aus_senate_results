@@ -51,11 +51,11 @@ class Ballot
 				break if box.nil?
 				tik = self.tickets[box]
 				ticket_complete = false
-				cands = self.candidates.select {|c| c.ticket == tik}
 				ticket_pos = 1
 				until ticket_complete
-					cands.each do |c|
+					self.candidates.each do |c|
 						updated = false
+						next if c.ticket != tik
 						next if c.ticket_position != ticket_pos
 						if preference == 1
 							c.cur_votes += 1
