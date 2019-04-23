@@ -111,6 +111,7 @@ class Ballot
 		frac = 0.0
 	
 		puts
+		#TODO check if below subtract working
 		candidate.cur_votes -= (candidate.recent_round_count * x).floor
 		frac += (candidate.recent_round_count * x) - (candidate.recent_round_count * x).floor
 		display_candidates.each do |c|
