@@ -212,7 +212,7 @@ def distribute_votes(ballot,round,candidate)
 					v.cur_candidate = nil
 					v.round_last_updated = round
 					if candidate.elected == false
-						ballot.current_exhaust += v.value
+						ballot.current_exhaust += v.x
 					end
 					break
 				end

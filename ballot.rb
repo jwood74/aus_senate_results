@@ -129,7 +129,7 @@ class Ballot
 			if v.round_last_updated == round
 				if v.is_exhaust
 					exh += 1
-					exh_v += v.value
+					exh_v += v.x
 				end
 			end
 		end
