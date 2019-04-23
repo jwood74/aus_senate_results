@@ -57,12 +57,13 @@ class Candidate
         @elected = false
         @elected_order = 0
         @elected_round = 0
-		@elected_bundle = 0
         @order = cnt
         @distributed = false
+        @transfers = [1.0]
+        @recent_round_count = 0
     end
 
     attr_reader :ticket, :surname, :ticket_position, :order
     attr_accessor :first_pref, :cur_votes, :excluded, :elected, 
-        :elected_order, :cur_papers, :distributed, :distributed, :elected_bundle, :elected_round
+        :elected_order, :cur_papers, :distributed, :distributed, :elected_round, :transfers, :recent_round_count
 end

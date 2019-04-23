@@ -112,7 +112,6 @@ def check_for_elected(ballot,round)
             ballot.candidates_elected += 1
 			c.elected_order = ballot.candidates_elected
 			c.elected_round = round
-			c.elected_bundle = ballot.max_bundle
 			puts "Candidate #{c.surname} has been elected."
 			ballot.cur_candidate_count -= 1
         end
@@ -163,7 +162,8 @@ def who_to_distribute(ballot)
 	end
 
 	if highest == ""
-		puts "Candidate #{lowest.name} has the least votes. Their votes will now be distributed."
+		puts "Candidate #{lowest.surname} has the least votes. Their votes will now be distributed."
+		puts "Votes will be distributed in order of transfer value: #{lowest.transfers.to_s}"
 		lowest.excluded = true
 		ballot.cur_candidate_count -= 1
 		return lowest
@@ -171,116 +171,76 @@ def who_to_distribute(ballot)
 		return highest
 	end
 end
- 
+
 def distribute_votes(ballot,round,candidate)
- 
-	puts "Distributing the votes of #{candidate.surname}."
 	puts
-	bar = ProgressBar.new(ballot.votes.count)
+	
  
     cnt = 0.0
 	tmp = Array.new
-	kmp = Array.new
-	transfer_value = 1.0
 
-	(1..round).each do |rnd|
-		bundles = [1]
-		ballot.votes.each do |v|
-			unless bundles.include? v.bundle
-				bundles << v.bundle
-			end
+	vote_values = candidate.transfers.sort.reverse
+
+	vote_values.each do |x|
+		bar = ProgressBar.new(ballot.votes.count)
+
+		if candidate.elected
+			x = (candidate.cur_votes - ballot.quota) / candidate.cur_papers
+			candidate.cur_votes = ballot.quota
 		end
 
-		bundles.each do |bu|
-			ballot.max_bundle += 1
+		puts "Distributing the votes of #{candidate.surname}."
+		puts "Transfer Value = #{x.round(2)}"
 
-			ballot.votes.each do |v|
-				next unless v.round_last_updated  == rnd
-				next unless v.bundle == bu
-				next unless v.cur_candidate == candidate.order
-				next if v.is_exhaust
-				
-
-				if candidate.elected
-					unless v.round_last_updated == candidate.elected_round && v.bundle == candidate.elected_bundle
-						next
-					end
-				end
-
-				ballot.candidates[v.cur_candidate].cur_papers -= 1
-				cur_pref = v.btl[candidate.order]
-
-				ballot.candidates.count.times do |t|
-					next_pref = (cur_pref + 1 + t)
-					if not v.btl.count(next_pref) == 1
-						v.is_exhaust = true
-						v.cur_candidate = nil
-						v.round_last_updated = round
-						if candidate.elected == false
-							ballot.current_exhaust += v.value
-						end
-						break
-					end
-					if ballot.candidates[v.btl.index(next_pref)].excluded || ballot.candidates[v.btl.index(next_pref)].elected
-						next
-					else
-						# ballot.candidates[v.order.index(next_pref)].cur_votes += 1
-						v.cur_candidate = v.btl.index(next_pref)
-						tmp << v
-						# cnt += 1
-						break
-					end
-
-				end
-			end
+		ballot.votes.each do |v|
+			bar.increment!
+			next unless v.cur_candidate == candidate.order	
+			next if v.is_exhaust
 
 			if candidate.excluded
-				tmp.each do |t|
-					ballot.candidates[t.cur_candidate].cur_votes += t.value
-					# ballot.candidates[t.cur_candidate].cur_votes = ballot.candidates[t.cur_candidate].cur_votes.round(3)
-					ballot.candidates[t.cur_candidate].cur_papers += 1
-					t.round_last_updated = round
-					t.bundle = ballot.max_bundle
-				end
-				kmp = kmp | tmp
-				tmp = Array.new
+				next unless v.value == x
 			end
 
-			check_for_elected(ballot,round)
+			ballot.candidates[v.cur_candidate].cur_papers -= 1
+			candidate.recent_round_count -= 1
+			cur_pref = v.btl[candidate.order]
 
+			ballot.candidates.count.times do |t|
+				next_pref = (cur_pref + 1 + t)
+				if not v.btl.count(next_pref) == 1
+					v.is_exhaust = true
+					v.cur_candidate = nil
+					v.round_last_updated = round
+					if candidate.elected == false
+						ballot.current_exhaust += v.value
+					end
+					break
+				end
+				if ballot.candidates[v.btl.index(next_pref)].excluded || ballot.candidates[v.btl.index(next_pref)].elected
+					next
+				else
+					v.cur_candidate = v.btl.index(next_pref)
+					ballot.candidates[v.cur_candidate].cur_papers += 1
+					ballot.candidates[v.cur_candidate].recent_round_count += 1
+					v.round_last_updated = round
+					if candidate.elected
+						v.value = x
+					end
+					break
+				end
+			end
 		end
-	end
 
-	if candidate.elected
-		puts "candidate.cur_votes #{candidate.cur_votes}"
-		puts "ballot.quota #{ballot.quota}"
-		puts "tmp.count #{tmp.count}"
-		transfer_value = (candidate.cur_votes - ballot.quota) / candidate.cur_votes
-		puts "Continuing Votes = #{tmp.count}. Transfer Value = #{transfer_value}"
-		candidate.cur_votes = ballot.quota
-	
-		tmp.each do |t|
-			t.value = transfer_value.round(10)
-			ballot.candidates[t.cur_candidate].cur_votes += transfer_value.round(10)
-			ballot.candidates[t.cur_candidate].cur_votes = ballot.candidates[t.cur_candidate].cur_votes.round(10)
-			ballot.candidates[t.cur_candidate].cur_papers += 1
-			t.round_last_updated = round
-			t.bundle = ballot.max_bundle
-		end
+		ballot.print_distributed_votes(round, candidate, x)
 		check_for_elected(ballot,round)
-	else
-		puts "Continuing Votes = #{kmp.count}."
-		candidate.cur_votes = 0
-		candidate.cur_papers = 0
-	end
+		ballot.print_current_votes(round)
+		round += 1
+		puts "** COUNT #{round} **"
 
-	ballot.current_total = 0
-	ballot.candidates.each do |c|
-		if c.excluded
-			next
+		if candidate.elected
+			break
 		end
-		ballot.current_total += c.cur_votes
 	end
-
 	candidate.distributed = true
+	return round
 end

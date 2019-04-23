@@ -9,11 +9,11 @@ class Ballot
 		@candidates_elected = 0
 		@cur_candidate_count = @candidates.count
 		@current_exhaust = 0.0
-		@max_bundle = 1
+		@fraction_lost = 0.0
 	end
 
 	attr_reader :quota, :tickets, :candidates_to_elect
-	attr_accessor :votes, :candidates, :candidates_elected, :current_exhaust, :current_total, :cur_candidate_count, :max_bundle
+	attr_accessor :votes, :candidates, :candidates_elected, :current_exhaust, :current_total, :cur_candidate_count, :fraction_lost
 
 	def calculate_quota
 		return (@current_total / (@candidates_to_elect + 1)) + 1
@@ -95,37 +95,34 @@ class Ballot
 			if c.excluded && c.distributed
 				next
 			end
-			puts "  Candidate #{c.surname} is on #{c.cur_votes.round(1)} votes (#{c.cur_papers} ballots). #{' ## elected ' + c.elected_order.to_s + ' ##' unless c.elected == false}"
+			puts "  Candidate #{c.surname} is on #{c.cur_votes.round} votes (#{c.cur_papers} ballots). #{' ## elected ' + c.elected_order.to_s + ' ##' unless c.elected == false}"
 					# (or #{(c.cur_votes.to_f / ballot.current_total * 100).round(2)}%)
 		end
 		puts
-		puts "#{self.current_total.round(0)} votes remaining in count. #{self.current_exhaust} votes have exhausted. #{self.cur_candidate_count} candidates remaining. Current Quota - #{self.quota}"
+		puts "#{self.current_total.round(0)} votes remaining in count. #{self.current_exhaust} votes have exhausted (#{self.fraction_lost.round} lost to fractions). #{self.cur_candidate_count} candidates remaining. Current Quota - #{self.quota}"
 		puts
 	end
 
-	def print_distributed_votes(round)
+	def print_distributed_votes(round, candidate, x)
 
-		display_candidates = self.candidates.sort_by { |x| x.cur_votes + (x.elected_order * 1000)}.reverse
+		display_candidates = self.candidates.sort_by { |x| x.recent_round_count + (x.elected_order * 1000)}.reverse
 		exh = 0
 		exh_v = 0.0
+		frac = 0.0
 	
 		puts
+		candidate.cur_votes -= (candidate.recent_round_count * x).floor
+		frac += (candidate.recent_round_count * x) - (candidate.recent_round_count * x).floor
 		display_candidates.each do |c|
 			if c.excluded || (c.elected && c.elected_round < round)
 				next
 			end
-			tmp = 0
-			jmp = 0.0
-			self.votes.each do |v|
-				if v.round_last_updated == round
-					if v.cur_candidate == c.order
-						tmp += 1
-						jmp += v.value
-						jmp = jmp.round(3)
-					end
-				end
-			end
-			puts "	Candidate #{c.surname} received #{tmp} votes (worth #{jmp})"
+			tmp = c.recent_round_count * x
+			c.cur_votes += tmp.floor
+			frac += (tmp - tmp.floor)
+			puts "	Candidate #{c.surname} received #{c.recent_round_count} votes (worth #{(c.recent_round_count * x).floor})"
+			c.transfers |= [x] if c.recent_round_count > 0
+			c.recent_round_count = 0
 		end
 	
 		self.votes.each do |v|
@@ -136,8 +133,11 @@ class Ballot
 				end
 			end
 		end
+
+		self.fraction_lost += frac
 	
 		puts "	Exhuasted #{exh} votes (worth #{exh_v.round(3)})"
+		puts "	#{frac.floor} lost to fractions"
 		puts
 	end
 end
@@ -157,11 +157,10 @@ class BallotPaper
 		@is_exhaust = false
 		@value = 1.0
 		@round_last_updated = 1
-		@bundle = 1
 	end
 
 	attr_reader :btl_formal, :paper, :batch, :atl_formal, :atl
-	attr_accessor :cur_candidate, :is_exhaust, :value, :btl, :round_last_updated, :bundle
+	attr_accessor :cur_candidate, :is_exhaust, :value, :btl, :round_last_updated
 
 	def fix_pref(pref)
 		result = Array.new
