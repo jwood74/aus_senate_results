@@ -15,27 +15,23 @@ download_candidates
 download_results(state)
 
 ballot = setup(load_in, candidates_to_elect, state)
- 
+
 round = 1
 puts "** COUNT #{round} **"
-check_for_elected(ballot,round)
+check_for_elected(ballot, round)
 ballot.print_current_votes(round)
+export(ballot, round)
 round += 1
 puts "** COUNT #{round} **"
 
 until ballot.candidates_elected == ballot.candidates_to_elect
 
-        distribute = who_to_distribute(ballot)
-        round = distribute_votes(ballot,round,distribute)
-        # ballot.print_distributed_votes(round)
+  if ballot.cur_candidate_count == (ballot.candidates_to_elect - ballot.candidates_elected)
+    puts "candidaes left equal spots"
+    break
+  end
 
-    # exit if round >= 4
-    if ballot.cur_candidate_count == 2
-        puts "only two candidate left"
-        puts "pick a winner"
-        break
-    end
+  distribute = who_to_distribute(ballot)
+  round = distribute_votes(ballot, round, distribute)
 
-    # exit if round >= 11
 end
-

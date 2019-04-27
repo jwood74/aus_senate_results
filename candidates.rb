@@ -50,20 +50,18 @@ class Candidate
         @ticket_position = ticket_position.to_i
         @surname = surname
         @party = party
-        @first_pref = 0
-        @cur_votes = @first_pref.to_f
-        @cur_papers = @first_pref
+        @cur_votes = [0]
+        @cur_papers = 0
         @excluded = false
         @elected = false
         @elected_order = 0
         @elected_round = 0
         @order = cnt
         @distributed = false
-        @transfers = [1.0]
+        @transfers = Hash.new(0)
         @recent_round_count = 0
     end
 
     attr_reader :ticket, :surname, :ticket_position, :order
-    attr_accessor :first_pref, :cur_votes, :excluded, :elected, 
-        :elected_order, :cur_papers, :distributed, :distributed, :elected_round, :transfers, :recent_round_count
+    attr_accessor :cur_votes, :excluded, :elected, :elected_order, :cur_papers, :distributed, :distributed, :elected_round, :transfers, :recent_round_count
 end

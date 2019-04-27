@@ -8,8 +8,8 @@ class Ballot
 		@quota = calculate_quota
 		@candidates_elected = 0
 		@cur_candidate_count = @candidates.count
-		@current_exhaust = 0.0
-		@fraction_lost = 0.0
+		@current_exhaust = 0
+		@fraction_lost = 0
 	end
 
 	attr_reader :quota, :tickets, :candidates_to_elect
@@ -25,11 +25,10 @@ class Ballot
 			# bar.increment!
 			next if !v.btl_formal
 			t = v.btl.find_index(1)
-			self.candidates[t].first_pref += 1
-			self.candidates[t].cur_votes += 1
+			self.candidates[t].cur_votes[0] += 1
 			self.candidates[t].cur_papers += 1
+			self.candidates[t].transfers[1.0] += 1
 			v.cur_candidate = t
-			
 		end
 	end
 
@@ -49,6 +48,7 @@ class Ballot
 			while checking
 				box = v.atl.find_index(atl_preference)
 				break if box.nil?
+				break if v.atl.count(atl_preference) > 1
 				tik = self.tickets[box]
 				ticket_complete = false
 				ticket_pos = 1
@@ -58,8 +58,9 @@ class Ballot
 						next if c.ticket != tik
 						next if c.ticket_position != ticket_pos
 						if preference == 1
-							c.cur_votes += 1
+							c.cur_votes[0] += 1
 							c.cur_papers += 1
+							c.transfers[1.0] += 1
 							v.cur_candidate = c.order
 						end
 						v.btl[c.order] = preference
@@ -74,32 +75,24 @@ class Ballot
 		end
 	end
 
-	def print_first_preference
-		display_candidates = self.candidates.sort_by { |x| x.cur_votes }.reverse
-	 
-		display_candidates.each do |c|
-			puts "  Candidate #{c.surname} received #{c.cur_votes.round} first preference votes"
-		end
-		puts "#{self.current_total} votes remaining in count"
-		puts
-	end
-
 	def print_current_votes(round)
 
 		puts "Subtotal" unless round == 1
 		puts
  
-		display_candidates = self.candidates.sort_by { |x| x.cur_votes + (x.elected_order * 1000)}.reverse
+		display_candidates = self.candidates.sort_by { |x| x.cur_votes.last + (x.elected_order * 1000)}.reverse
+		tot = 0
 	 
 		display_candidates.each do |c|
 			if c.excluded && c.distributed
 				next
 			end
-			puts "  Candidate #{c.surname} is on #{c.cur_votes.round} votes (#{c.cur_papers} ballots). #{' ## elected ' + c.elected_order.to_s + ' ##' unless c.elected == false}"
+			tot += c.cur_votes.last
+			puts "  Candidate #{c.surname} is on #{c.cur_votes.last} votes (#{c.cur_papers} ballots). #{' ## elected ' + c.elected_order.to_s + ' ##' unless c.elected == false}"
 					# (or #{(c.cur_votes.to_f / ballot.current_total * 100).round(2)}%)
 		end
 		puts
-		puts "#{self.current_total.round(0)} votes remaining in count. #{self.current_exhaust} votes have exhausted (#{self.fraction_lost.round} lost to fractions). #{self.cur_candidate_count} candidates remaining. Current Quota - #{self.quota}"
+		puts "#{tot} votes remaining in count. #{self.current_exhaust} votes have exhausted (#{self.fraction_lost.round} lost to fractions). #{self.cur_candidate_count} candidates remaining. Current Quota - #{self.quota}"
 		puts
 	end
 
@@ -108,36 +101,53 @@ class Ballot
 		display_candidates = self.candidates.sort_by { |x| x.recent_round_count + (x.elected_order * 1000)}.reverse
 		exh = 0
 		exh_v = 0.0
-		frac = 0.0
-	
+		frac = 0
+		tot = 0
+
 		puts
-		candidate.cur_votes += (candidate.recent_round_count * x).floor
-		frac += (candidate.recent_round_count * x) - (candidate.recent_round_count * x).floor
+		# candidate.cur_votes << candidate.cur_votes.last + (candidate.recent_round_count * x).ceil
+
+		if candidate.excluded
+			candidate.cur_votes << candidate.cur_votes.last - candidate.transfers[x]
+		else
+			candidate.cur_votes << candidate.cur_votes.last + (candidate.recent_round_count * x).ceil
+		end
+
 		display_candidates.each do |c|
 			if c.excluded || (c.elected && c.elected_round < round)
 				next
 			end
 			tmp = c.recent_round_count * x
-			c.cur_votes += tmp.floor
-			frac += (tmp - tmp.floor)
+			c.cur_votes << c.cur_votes.last + tmp.floor
+			c.transfers[x] += tmp.floor if c.recent_round_count > 0
 			puts "	Candidate #{c.surname} received #{c.recent_round_count} votes (worth #{(c.recent_round_count * x).floor})"
-			c.transfers |= [x] if c.recent_round_count > 0
-			c.recent_round_count = 0
+			# c.transfers |= [x] if c.recent_round_count > 0
 		end
 	
 		self.votes.each do |v|
 			if v.round_last_updated == round
 				if v.is_exhaust
 					exh += 1
-					exh_v += v.x
+					exh_v += x
 				end
 			end
 		end
 
-		self.fraction_lost += frac
+		self.current_exhaust += exh_v.floor
+
+		# export(self, round, x, candidate.order)
+
+		self.candidates.each do |c|
+			c.recent_round_count = 0
+			tot += c.cur_votes.last
+		end
+
+		frac = self.current_total - tot - self.fraction_lost - self.current_exhaust
+
+		self.fraction_lost += frac.round
 	
 		puts "	Exhuasted #{exh} votes (worth #{exh_v.round(3)})"
-		puts "	#{frac.floor} lost to fractions"
+		puts "	#{frac.round} lost to fractions"
 		puts
 	end
 end

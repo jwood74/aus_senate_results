@@ -101,13 +101,13 @@ def load_ballots
 end
 
 def check_for_elected(ballot,round)
-    display_candidates = ballot.candidates.sort_by { |x| x.cur_votes }.reverse
+    display_candidates = ballot.candidates.sort_by { |x| x.cur_votes.last }.reverse
  
     display_candidates.each do |c|
         if c.excluded || c.elected
             next
         end
-        if c.cur_votes >= ballot.quota
+        if c.cur_votes.last >= ballot.quota
             c.elected = true
             ballot.candidates_elected += 1
 			c.elected_order = ballot.candidates_elected
@@ -118,27 +118,8 @@ def check_for_elected(ballot,round)
     end
 end
 
-def find_lowest(ballot)
-    lowest = ""
-    lowest_votes = Float::INFINITY
- 
-    ballot.candidates.each do |c|
-        if c.excluded || c.elected
-            next
-        end
-        if c.cur_votes < lowest_votes
-            lowest_votes = c.cur_votes
-            lowest = c
-        end
-    end
-    lowest.excluded = true
-    ballot.cur_candidate_count -= 1
-    # puts "Candidate #{lowest.name} has the least votes. Their votes will now be distributed."
-    return lowest
-end
-
 def who_to_distribute(ballot)
-	lowest = ""
+	lowest = []
 	lowest_votes = Float::INFINITY
 	highest = ""
 	highest_votes = Float::INFINITY
@@ -147,10 +128,13 @@ def who_to_distribute(ballot)
 		if c.distributed
 			next
 		end
-		if c.cur_votes < lowest_votes and c.elected == false
-			lowest_votes = c.cur_votes
-			lowest = c
-		elsif c.elected == true and c.elected_order < highest_votes and c.cur_votes >= ballot.quota
+		if c.cur_votes.last < lowest_votes and c.elected == false
+			lowest_votes = c.cur_votes.last
+			lowest = [c]
+		elsif
+			c.cur_votes.last == lowest_votes and c.elected == false
+			lowest << c
+		elsif c.elected == true and c.elected_order < highest_votes and c.cur_votes.last > ballot.quota and c.distributed == false
 			highest_votes = c.elected_order
 			highest = c
 		end
@@ -162,11 +146,44 @@ def who_to_distribute(ballot)
 	end
 
 	if highest == ""
-		puts "Candidate #{lowest.surname} has the least votes. Their votes will now be distributed."
-		puts "Votes will be distributed in order of transfer value: #{lowest.transfers.to_s}"
-		lowest.excluded = true
+		
+		if lowest.count > 1
+			if lowest.first.cur_votes.count != lowest.last.cur_votes.count
+				puts "broke"
+				exit
+			end
+			low = Array.new
+			lowest.first.cur_votes.count.times do |n|
+				low = Array.new
+				low_votes = Float::INFINITY
+				lowest.each do |l|
+					if l.cur_votes[-(n+1)] < low_votes
+						low_votes = l.cur_votes[-(n+1)]
+						low = [l]
+					elsif low_votes == l.cur_votes[-(n+1)]
+						low << l
+					end
+				end
+				if low.count == 1
+					lowest = low
+					break
+				end
+			end
+			if low.count > 2
+				puts "intervention required"
+				low.each_with_index do |l,m|
+					puts "press #{m+1} to eliminate #{l.surname}"
+				end
+				selection = gets.chomp.to_i
+				lowest = low[selection - 1]
+			end
+		end
+
+		puts "Candidate #{lowest.first.surname} has the least votes. Their votes will now be distributed."
+		puts "Votes will be distributed in order of transfer value: #{lowest.first.transfers.to_s}"
+		lowest.first.excluded = true
 		ballot.cur_candidate_count -= 1
-		return lowest
+		return lowest.first
 	else
 		return highest
 	end
@@ -174,19 +191,18 @@ end
 
 def distribute_votes(ballot,round,candidate)
 	puts
-	
- 
+
     cnt = 0.0
 	tmp = Array.new
 
-	vote_values = candidate.transfers.sort.reverse
+	vote_values = candidate.transfers.keys.sort.reverse
 
 	vote_values.each do |x|
 		bar = ProgressBar.new(ballot.votes.count)
 
 		if candidate.elected
-			x = (candidate.cur_votes - ballot.quota) / candidate.cur_papers
-			candidate.cur_votes = ballot.quota
+			x = (candidate.cur_votes.last - ballot.quota).to_f / candidate.cur_papers
+			# candidate.cur_votes << ballot.quota
 		end
 
 		puts "Distributing the votes of #{candidate.surname}."
@@ -194,7 +210,7 @@ def distribute_votes(ballot,round,candidate)
 
 		ballot.votes.each do |v|
 			bar.increment!
-			next unless v.cur_candidate == candidate.order	
+			next unless v.cur_candidate == candidate.order
 			next if v.is_exhaust
 
 			if candidate.excluded
@@ -211,9 +227,6 @@ def distribute_votes(ballot,round,candidate)
 					v.is_exhaust = true
 					v.cur_candidate = nil
 					v.round_last_updated = round
-					if candidate.elected == false
-						ballot.current_exhaust += v.x
-					end
 					break
 				end
 				if ballot.candidates[v.btl.index(next_pref)].excluded || ballot.candidates[v.btl.index(next_pref)].elected
@@ -229,18 +242,62 @@ def distribute_votes(ballot,round,candidate)
 					break
 				end
 			end
+
 		end
+
+		
 
 		ballot.print_distributed_votes(round, candidate, x)
 		check_for_elected(ballot,round)
 		ballot.print_current_votes(round)
+		export(ballot, round)
 		round += 1
 		puts "** COUNT #{round} **"
-
+		
 		if candidate.elected
 			break
 		end
 	end
 	candidate.distributed = true
 	return round
+end
+
+def export(ballot,round,x = nil, candidate = nil)
+	if round == 1
+		CSV.open("export.csv", "wb") do |csv|
+			cands = ["round"]
+			votes = [round]
+			ballot.candidates.each do |c|
+				cands << c.order
+				votes << c.cur_votes.last
+			end
+			cands << "exhaust"
+			cands << "faction"
+			cands << "value"
+			csv << cands
+			csv << votes
+		end
+	elsif x
+		CSV.open('export.csv', 'ab') do |outfile|
+			votes = [candidate]
+			ballot.candidates.each do |c|
+				votes << c.recent_round_count
+			end
+			votes << 0
+			votes << 0
+			votes << x
+			outfile << votes
+		end
+	else
+		CSV.open('export.csv', 'ab') do |outfile|
+			votes = [round]
+			ballot.candidates.each do |c|
+				votes << c.cur_votes.last
+			end
+			votes << ballot.current_exhaust
+			votes << ballot.fraction_lost
+			votes << ""
+			outfile << votes
+		end
+	end
 end
