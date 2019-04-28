@@ -61,7 +61,11 @@ def check_for_elected(ballot,round)
 			c.elected_round = round
 			puts "Candidate #{c.surname} has been elected."
 			ballot.cur_candidate_count -= 1
-			ballot.pending_distribution += 1
+			if c.cur_votes == ballot.quota
+				c.distributed = true
+			else
+				ballot.pending_distribution += 1
+			end
         end
     end
 end
