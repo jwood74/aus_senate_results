@@ -22,9 +22,7 @@ class Ballot
 	end
 
 	def process_btl_first_preference
-		bar = ProgressBar.new(self.current_total)
 		self.votes.each do |v|
-			# bar.increment!
 			next if !v.btl_formal
 			t = v.btl.find_index(1)
 			self.candidates[t].cur_votes[0] += 1
@@ -91,7 +89,6 @@ class Ballot
 			end
 			tot += c.cur_votes.last
 			puts "  Candidate #{c.surname} is on #{c.cur_votes.last} votes (#{c.cur_papers} ballots). #{' ## elected ' + c.elected_order.to_s + ' ##' unless c.elected == false}"
-					# (or #{(c.cur_votes.to_f / ballot.current_total * 100).round(2)}%)
 		end
 		puts
 		puts "#{tot} votes remaining in count. #{self.current_exhaust} votes have exhausted (#{self.fraction_lost.round} lost to fractions). #{self.cur_candidate_count} candidates remaining. Current Quota - #{self.quota}"
@@ -196,8 +193,7 @@ class BallotPaper
 	def check_btl_formal
 		if btl.nil?
 			return false
-		# elsif  ((@btl.count("1") + @btl.count("*") + @btl.count("/")) == 1) && @btl.count("2") == 1 && @btl.count("3") == 1 && @btl.count("4") == 1 && @btl.count("5") == 1 && @btl.count("6") == 1 # && @btl.count("7") == 1 && @btl.count("8") == 1 && @btl.count("9") == 1 && @btl.count("10") == 1 && @btl.count("11") == 1 && @btl.count("12") == 1
-		elsif  btl.count(1) == 1 && self.btl.count(2) == 1 && self.btl.count(3) == 1 && self.btl.count(4) == 1 && self.btl.count(5) == 1 && self.btl.count(6) == 1 # && @btl.count("7") == 1 && @btl.count("8") == 1 && @btl.count("9") == 1 && @btl.count("10") == 1 && @btl.count("11") == 1 && @btl.count("12") == 1	
+		elsif  btl.count(1) == 1 && self.btl.count(2) == 1 && self.btl.count(3) == 1 && self.btl.count(4) == 1 && self.btl.count(5) == 1 && self.btl.count(6) == 1
 			return true
 		else
 			return false
@@ -207,7 +203,6 @@ class BallotPaper
 	def check_atl_formal
 		if self.btl_formal
 			return false
-		# elsif (@atl.count("1") + @atl.count("*") + @atl.count("/")) == 1
 		elsif self.atl.count(1) == 1
 			return true
 		else

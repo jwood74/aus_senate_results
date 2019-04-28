@@ -36,24 +36,13 @@ def process_ballot_papers(state,tickets)
 		if ln == 1 || ln == 2
 			next
 		end
-		# next unless row[2] == "1" && row[3] == "26" && row[4] == "47"
 
 		b = BallotPaper.new(row[0],row[2],row[3],row[4],row[5],tickets)
 		ballot_papers << b
 		bar.increment!
-		 
-		if $debug && ln == 2000
-			break
-		end
 
-	 	# if ln % 200000 == 0
-	 	# 	File.open("ballots_#{ln}.b","wb") {|f| f.write(Marshal.dump(ballot_papers))}
-	 	# 	ballot_papers = Array.new
-		# end
-		
 	end
 
-	# File.open("ballots_last.b","wb") {|f| f.write(Marshal.dump(ballot_papers))}
 	puts "There are #{ballot_papers.count} ballot papers."
 	return ballot_papers
 end
@@ -156,11 +145,6 @@ def who_to_distribute(ballot,round)
 			highest_votes = c.elected_order
 			highest = c
 		end
-
-		# elsif c.cur_votes > highest_votes and c.elected and c.distributed == false
-		# 	highest_votes = c.cur_votes
-		# 	highest = c
-		# end
 	end
 
 	if highest == ""
@@ -223,7 +207,6 @@ def distribute_votes(ballot,round,candidate)
 
 		if candidate.elected
 			x = (candidate.cur_votes.last - ballot.quota).to_f / candidate.cur_papers
-			# candidate.cur_votes << ballot.quota
 		end
 
 		puts "Distributing the votes of #{candidate.surname}."
