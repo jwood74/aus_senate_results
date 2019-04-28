@@ -10,10 +10,12 @@ class Ballot
 		@cur_candidate_count = @candidates.count
 		@current_exhaust = 0
 		@fraction_lost = 0
+		@state = state
+		@pending_distribution = 0
 	end
 
-	attr_reader :quota, :tickets, :candidates_to_elect
-	attr_accessor :votes, :candidates, :candidates_elected, :current_exhaust, :current_total, :cur_candidate_count, :fraction_lost
+	attr_reader :quota, :tickets, :candidates_to_elect, :state
+	attr_accessor :votes, :candidates, :candidates_elected, :current_exhaust, :current_total, :cur_candidate_count, :fraction_lost, :pending_distribution
 
 	def calculate_quota
 		return (@current_total / (@candidates_to_elect + 1)) + 1
@@ -146,7 +148,7 @@ class Ballot
 
 		self.fraction_lost += frac.round
 	
-		puts "	Exhuasted #{exh} votes (worth #{exh_v.round(3)})"
+		puts "	Exhuasted #{exh} votes (worth #{exh_v.floor})"
 		puts "	#{frac.round} lost to fractions"
 		puts
 	end

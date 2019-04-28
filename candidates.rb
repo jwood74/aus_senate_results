@@ -62,6 +62,6 @@ class Candidate
         @recent_round_count = 0
     end
 
-    attr_reader :ticket, :surname, :ticket_position, :order
+    attr_reader :ticket, :surname, :ticket_position, :order, :party
     attr_accessor :cur_votes, :excluded, :elected, :elected_order, :cur_papers, :distributed, :distributed, :elected_round, :transfers, :recent_round_count
 end

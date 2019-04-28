@@ -8,13 +8,11 @@ require_relative 'candidates'
 
 state = 'QLD'
 candidates_to_elect = 12
-$debug = false
-load_in = true
 
 download_candidates
 download_results(state)
 
-ballot = setup(load_in, candidates_to_elect, state)
+ballot = setup(candidates_to_elect, state)
 
 round = 1
 puts "** COUNT #{round} **"
@@ -26,12 +24,9 @@ puts "** COUNT #{round} **"
 
 until ballot.candidates_elected == ballot.candidates_to_elect
 
-  if ballot.cur_candidate_count == (ballot.candidates_to_elect - ballot.candidates_elected)
-    puts "candidaes left equal spots"
-    break
-  end
-
-  distribute = who_to_distribute(ballot)
+  distribute = who_to_distribute(ballot,round)
   round = distribute_votes(ballot, round, distribute)
 
 end
+
+display_final_results(ballot)

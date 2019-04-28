@@ -1,16 +1,8 @@
-def setup(load_in, candidates_to_elect, state)
-	if load_in
-		puts "Loading the file"
-		ballot = Marshal.load(File.read('ballot.b'))
-	else
-		ballot = Ballot.new(candidates_to_elect,state)
-	
-		ballot.process_btl_first_preference
-		ballot.process_atl_preferences
-	
-		puts "Writing the file to disc"
-		File.open("ballot.b","wb") {|f| f.write(Marshal.dump(ballot))}
-	end
+def setup(candidates_to_elect, state)
+	ballot = Ballot.new(candidates_to_elect,state)
+
+	ballot.process_btl_first_preference
+	ballot.process_atl_preferences
 	return ballot
 end
 
@@ -66,40 +58,6 @@ def process_ballot_papers(state,tickets)
 	return ballot_papers
 end
 
-def load_ballots
-	bar = ProgressBar.new(2723166)
-	ballots = Marshal.load(File.read('ballots_200000.b'))
-	bar.increment!(200000)
-	ballots += Marshal.load(File.read('ballots_400000.b'))
-	bar.increment!(200000)
-	ballots += Marshal.load(File.read('ballots_600000.b'))
-	bar.increment!(200000)
-	ballots += Marshal.load(File.read('ballots_800000.b'))
-	bar.increment!(200000)
-	ballots += Marshal.load(File.read('ballots_1000000.b'))
-	bar.increment!(200000)
-	ballots += Marshal.load(File.read('ballots_1200000.b'))
-	bar.increment!(200000)
-	ballots += Marshal.load(File.read('ballots_1400000.b'))
-	bar.increment!(200000)
-	ballots += Marshal.load(File.read('ballots_1600000.b'))
-	bar.increment!(200000)
-	ballots += Marshal.load(File.read('ballots_1800000.b'))
-	bar.increment!(200000)
-	ballots += Marshal.load(File.read('ballots_2000000.b'))
-	bar.increment!(200000)
-	ballots += Marshal.load(File.read('ballots_2200000.b'))
-	bar.increment!(200000)
-	ballots += Marshal.load(File.read('ballots_2400000.b'))
-	bar.increment!(200000)
-	ballots += Marshal.load(File.read('ballots_2600000.b'))
-	bar.increment!(200000)
-	ballots += Marshal.load(File.read('ballots_last.b'))
-	bar.increment!(123166)
-	puts ballots.count.to_s + " loaded"
-	return ballots
-end
-
 def check_for_elected(ballot,round)
     display_candidates = ballot.candidates.sort_by { |x| x.cur_votes.last }.reverse
  
@@ -114,11 +72,71 @@ def check_for_elected(ballot,round)
 			c.elected_round = round
 			puts "Candidate #{c.surname} has been elected."
 			ballot.cur_candidate_count -= 1
+			ballot.pending_distribution += 1
         end
     end
 end
 
-def who_to_distribute(ballot)
+def elect_remaining_candidates(ballot,round)
+	display_candidates = ballot.candidates.sort_by { |x| x.cur_votes.last }.reverse
+ 
+	display_candidates.each do |c|
+		if c.excluded || c.elected
+			next
+		end
+		c.elected = true
+		ballot.candidates_elected += 1
+		c.elected_order = ballot.candidates_elected
+		c.elected_round = round
+		puts "Candidate #{c.surname} has been elected (In accordance with s273(18))."
+		ballot.cur_candidate_count -= 1
+	end
+end
+
+def elect_leading_candidate(ballot,round)
+	display_candidates = ballot.candidates.sort_by { |x| x.cur_votes.last }.reverse
+ 
+	display_candidates.each do |c|
+		if c.excluded || c.elected
+			next
+		end
+		if ballot.candidates_elected < ballot.candidates_to_elect
+			c.elected = true
+			ballot.candidates_elected += 1
+			c.elected_order = ballot.candidates_elected
+			c.elected_round = round
+			puts "Candidate #{c.surname} has been elected (In accordance with s273(17))."
+			ballot.cur_candidate_count -= 1
+		else
+			c.excluded = true
+			c.elected_order = ballot.candidates.count - ballot.cur_candidate_count - ballot.candidates_elected
+			c.elected_round = round
+			ballot.cur_candidate_count -= 1
+		end
+	end
+end
+
+def display_final_results(ballot)
+	display_candidates = ballot.candidates.sort_by { |x| x.elected_order }
+	
+	puts
+	puts "Distribution over. Below are the elected candidates"
+	puts
+	display_candidates.each do |c|
+		next unless c.elected
+		puts "#{c.elected_order} - #{c.surname} (#{c.party}) - Round #{c.elected_round}"
+	end
+
+	puts
+	puts "Excluded candidates"
+	puts
+	display_candidates.each do |c|
+		next unless c.excluded
+		puts "#{c.elected_order} - #{c.surname} (#{c.party}) - Round #{c.elected_round}"
+	end
+end
+
+def who_to_distribute(ballot,round)
 	lowest = []
 	lowest_votes = Float::INFINITY
 	highest = ""
@@ -181,8 +199,11 @@ def who_to_distribute(ballot)
 
 		puts "Candidate #{lowest.first.surname} has the least votes. Their votes will now be distributed."
 		puts "Votes will be distributed in order of transfer value: #{lowest.first.transfers.to_s}"
+		ballot.pending_distribution += 1
 		lowest.first.excluded = true
 		ballot.cur_candidate_count -= 1
+		lowest.first.elected_round = round - 1
+		lowest.first.elected_order = ballot.candidates.count - ballot.cur_candidate_count - ballot.candidates_elected
 		return lowest.first
 	else
 		return highest
@@ -250,21 +271,39 @@ def distribute_votes(ballot,round,candidate)
 		ballot.print_distributed_votes(round, candidate, x)
 		check_for_elected(ballot,round)
 		ballot.print_current_votes(round)
-		export(ballot, round)
+		export(ballot, round)	
+		break if end_condition(ballot, round)
 		round += 1
 		puts "** COUNT #{round} **"
-		
+
 		if candidate.elected
 			break
 		end
 	end
 	candidate.distributed = true
+	ballot.pending_distribution -= 1
 	return round
+end
+
+def end_condition(ballot, round)
+	if ballot.pending_distribution == 1
+		if ballot.cur_candidate_count == (ballot.candidates_to_elect - ballot.candidates_elected)
+		  elect_remaining_candidates(ballot, round)
+		  return true
+		elsif ballot.cur_candidate_count == 2
+		  elect_leading_candidate(ballot, round)
+		  return true
+		end
+	elsif ballot.candidates_elected == ballot.candidates_to_elect
+			return true
+	else
+		return false
+	end
 end
 
 def export(ballot,round,x = nil, candidate = nil)
 	if round == 1
-		CSV.open("export.csv", "wb") do |csv|
+		CSV.open("export_#{ballot.state}.csv", "wb") do |csv|
 			cands = ["round"]
 			votes = [round]
 			ballot.candidates.each do |c|
@@ -278,7 +317,7 @@ def export(ballot,round,x = nil, candidate = nil)
 			csv << votes
 		end
 	elsif x
-		CSV.open('export.csv', 'ab') do |outfile|
+		CSV.open("export_#{ballot.state}.csv", 'ab') do |outfile|
 			votes = [candidate]
 			ballot.candidates.each do |c|
 				votes << c.recent_round_count
@@ -289,7 +328,7 @@ def export(ballot,round,x = nil, candidate = nil)
 			outfile << votes
 		end
 	else
-		CSV.open('export.csv', 'ab') do |outfile|
+		CSV.open("export_#{ballot.state}.csv", 'ab') do |outfile|
 			votes = [round]
 			ballot.candidates.each do |c|
 				votes << c.cur_votes.last
