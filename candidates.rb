@@ -15,7 +15,7 @@ def download_candidates
     end
 end
 
-def process_candidates(state)
+def process_candidates(state, candidates_to_exclude)
     candidates = Array.new
     cnt = 0
     
@@ -23,10 +23,10 @@ def process_candidates(state)
         unless row[2] == state && row[1] == 'S'
             next
         end
-        candidates << Candidate.new(cnt,row[4],row[5],row[6],row[8])
+        candidates << Candidate.new(cnt,row[4],row[5],row[6],row[8],(candidates_to_exclude.include? (cnt + 1)))
         cnt += 1
     end
-    puts "There are #{candidates.count} candidates."
+    puts "There are #{candidates.count - candidates_to_exclude.count} candidates."
     return candidates
 end
 
@@ -45,19 +45,19 @@ def process_tickets(candidates)
 end
 
 class Candidate
-    def initialize(cnt, ticket, ticket_position, surname, party)
+    def initialize(cnt, ticket, ticket_position, surname, party, exclude)
         @ticket = ticket
         @ticket_position = ticket_position.to_i
         @surname = surname
         @party = party
         @cur_votes = [0]
         @cur_papers = 0
-        @excluded = false
+        @excluded = exclude
         @elected = false
         @elected_order = 0
         @elected_round = 0
         @order = cnt
-        @distributed = false
+        @distributed = exclude
         @transfers = Hash.new(0)
         @recent_round_count = 0
     end

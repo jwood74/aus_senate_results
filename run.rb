@@ -9,10 +9,15 @@ require_relative 'candidates'
 state = 'QLD'
 candidates_to_elect = 12
 
+## Incase certain candidates need to be excluded before the count,
+## add the below-the-line id of each here. Leave empty if no exclusions.
+candidates_to_exclude = []  #62,90
+## BTL ballot papers
+
 download_candidates
 download_results(state)
 
-ballot = setup(candidates_to_elect, state)
+ballot = setup(candidates_to_elect, state, candidates_to_exclude)
 
 round = 1
 puts "** COUNT #{round} **"

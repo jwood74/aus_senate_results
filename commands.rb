@@ -1,8 +1,9 @@
-def setup(candidates_to_elect, state)
-	ballot = Ballot.new(candidates_to_elect,state)
+def setup(candidates_to_elect, state, candidates_to_exclude)
+	ballot = Ballot.new(candidates_to_elect,state, candidates_to_exclude)
 
-	ballot.process_btl_first_preference
+	
 	ballot.process_atl_preferences
+	ballot.process_btl_first_preference
 	return ballot
 end
 
@@ -36,6 +37,8 @@ def process_ballot_papers(state,tickets)
 		if ln == 1 || ln == 2
 			next
 		end
+
+		# break if ln == 2000
 
 		b = BallotPaper.new(row[0],row[2],row[3],row[4],row[5],tickets)
 		ballot_papers << b
@@ -125,6 +128,7 @@ def display_final_results(ballot)
 	puts
 	display_candidates.each do |c|
 		next unless c.excluded
+		next if ballot.candidates_to_exclude.include? (c.order + 1)
 		puts "#{c.elected_order} - #{c.surname} (#{c.party}) - Round #{c.elected_round}"
 	end
 end
@@ -181,7 +185,7 @@ def who_to_distribute(ballot,round)
 					puts "press #{m+1} to eliminate #{l.surname}"
 				end
 				selection = gets.chomp.to_i
-				lowest = low[selection - 1]
+				lowest = [low[selection - 1]]
 			end
 		end
 
@@ -191,7 +195,7 @@ def who_to_distribute(ballot,round)
 		lowest.first.excluded = true
 		ballot.cur_candidate_count -= 1
 		lowest.first.elected_round = round - 1
-		lowest.first.elected_order = ballot.candidates.count - ballot.cur_candidate_count - ballot.candidates_elected
+		lowest.first.elected_order = ballot.candidates.count - ballot.cur_candidate_count - ballot.candidates_elected - ballot.candidates_to_exclude.count
 		return lowest.first
 	else
 		return highest
@@ -252,8 +256,6 @@ def distribute_votes(ballot,round,candidate)
 			end
 
 		end
-
-		
 
 		ballot.print_distributed_votes(round, candidate, x)
 		check_for_elected(ballot,round)

@@ -1,20 +1,21 @@
 class Ballot
-	def initialize(candidates_to_elect, state)
-		@candidates = process_candidates(state)
+	def initialize(candidates_to_elect, state, candidates_to_exclude)
+		@candidates = process_candidates(state, candidates_to_exclude)
 		@tickets = process_tickets(@candidates)
 		@votes = process_ballot_papers(state,tickets.count)
 		@current_total = @votes.count
 		@candidates_to_elect = candidates_to_elect
 		@quota = calculate_quota
 		@candidates_elected = 0
-		@cur_candidate_count = @candidates.count
+		@cur_candidate_count = @candidates.count - candidates_to_exclude.count
 		@current_exhaust = 0
 		@fraction_lost = 0
 		@state = state
 		@pending_distribution = 0
+		@candidates_to_exclude = candidates_to_exclude
 	end
 
-	attr_reader :quota, :tickets, :candidates_to_elect, :state
+	attr_reader :quota, :tickets, :candidates_to_elect, :state, :candidates_to_exclude
 	attr_accessor :votes, :candidates, :candidates_elected, :current_exhaust, :current_total, :cur_candidate_count, :fraction_lost, :pending_distribution
 
 	def calculate_quota
@@ -22,13 +23,31 @@ class Ballot
 	end
 
 	def process_btl_first_preference
+		puts "Processing the BTL votes"
+		bar = ProgressBar.new(self.current_total)
+	
 		self.votes.each do |v|
-			next if !v.btl_formal
-			t = v.btl.find_index(1)
-			self.candidates[t].cur_votes[0] += 1
-			self.candidates[t].cur_papers += 1
-			self.candidates[t].transfers[1.0] += 1
-			v.cur_candidate = t
+			bar.increment!
+
+			cur_pref = 0
+
+			self.candidates.count.times do |t|
+				next_pref = (cur_pref + 1 + t)
+				if not v.btl.count(next_pref) == 1 || (v.btl_formal && self.candidates[v.btl.index(next_pref)].excluded && next_pref == 1)
+					v.is_exhaust = true
+					v.cur_candidate = nil
+					break
+				end
+				if self.candidates[v.btl.index(next_pref)].excluded || self.candidates[v.btl.index(next_pref)].elected
+					next
+				else
+					v.cur_candidate = v.btl.index(next_pref)
+					self.candidates[v.cur_candidate].cur_papers += 1
+					self.candidates[v.cur_candidate].cur_votes[0] += 1
+					self.candidates[v.cur_candidate].transfers[1.0] += 1
+					break
+				end
+			end
 		end
 	end
 
@@ -57,12 +76,6 @@ class Ballot
 						updated = false
 						next if c.ticket != tik
 						next if c.ticket_position != ticket_pos
-						if preference == 1
-							c.cur_votes[0] += 1
-							c.cur_papers += 1
-							c.transfers[1.0] += 1
-							v.cur_candidate = c.order
-						end
 						v.btl[c.order] = preference
 						ticket_pos += 1
 						preference += 1

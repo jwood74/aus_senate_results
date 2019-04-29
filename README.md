@@ -13,7 +13,6 @@ Using this data, and systems like this one, the public can recreate the senate c
 # ToDo
 + optimise atl distribution
 + order of election if two elected with same number of votes
-+ Allow a candidate to be excluded from beginning (as was the case when candidates became ineligible)
 
 # Contact
 jw@jaxenwood.com
