@@ -33,7 +33,7 @@ class Ballot
 
 			self.candidates.count.times do |t|
 				next_pref = (cur_pref + 1 + t)
-				if not v.btl.count(next_pref) == 1 || (v.btl_formal && self.candidates[v.btl.index(next_pref)].excluded && next_pref == 1)
+				if not v.btl.count(next_pref) == 1
 					v.is_exhaust = true
 					v.cur_candidate = nil
 					break
