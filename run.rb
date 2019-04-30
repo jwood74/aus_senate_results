@@ -1,6 +1,6 @@
-require 'csv'
-require 'progress_bar'
-require 'pathname'
+require 'rubygems'
+require 'bundler/setup'
+Bundler.require
 
 require_relative 'commands'
 require_relative 'ballot'

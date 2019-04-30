@@ -6,8 +6,8 @@ Following a federal election, the AEC publishes a copy of every formal ballot pa
 Using this data, and systems like this one, the public can recreate the senate count to determine the winners.
 
 # Setup
-+ Install the required gem files.
-+ update run file with the State you are after (eg NSW, VIC, QLD)
++ Install the required gem files using 'bundle install'
++ update run file with the State you are after (eg NSW, VIC, QLD) and how many candidates to be elected
 + Execute run.rb
 
 # ToDo
