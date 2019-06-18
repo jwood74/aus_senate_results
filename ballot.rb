@@ -1,8 +1,8 @@
 class Ballot
-	def initialize(candidates_to_elect, state, candidates_to_exclude)
-		@candidates = process_candidates(state, candidates_to_exclude)
-		@tickets = process_tickets(@candidates)
-		@votes = process_ballot_papers(state,tickets.count)
+	def initialize(candidates_to_elect, election_code,state, candidates_to_exclude)
+		@candidates = process_candidates(election_code,state, candidates_to_exclude)
+		@tickets = process_tickets(election_code, state)
+		@votes = process_ballot_papers(election_code,state,tickets.count)
 		@current_total = @votes.count
 		@candidates_to_elect = candidates_to_elect
 		@quota = calculate_quota
@@ -171,8 +171,8 @@ class BallotPaper
 		@booth_id = booth_id.to_i
 		@batch = batch.to_i
 		@paper = paper.to_i
-		@btl = fix_pref(prefs.split(",")[tickets..-1])
-		@atl = fix_pref(prefs.split(",")[0..(tickets - 1)])
+		@btl = fix_pref(prefs[tickets..-1])
+		@atl = fix_pref(prefs[0..(tickets - 1)])
 		@btl_formal = check_btl_formal
 		@atl_formal = check_atl_formal
 		@cur_candidate = nil
@@ -190,7 +190,7 @@ class BallotPaper
 			return nil
 		else
 			pref.each do |b|
-				if b.empty?
+				if b.nil? || b.empty?
 					result << nil
 				elsif b == '*' || b == '/'
 					result << 1

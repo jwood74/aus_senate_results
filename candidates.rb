@@ -1,10 +1,10 @@
-def download_candidates(election_code)
-    pn = Pathname.new("aec-senate-candidateinformation-#{election_code}.csv")
+def download_candidates(election_code,state)
+    pn = Pathname.new("aec-senate-formalpreferences-#{election_code}-#{state}.csv")
 
     unless pn.exist?()
         require 'open-uri'
         require 'zip/zip'
-        content = open("https://results.aec.gov.au/#{election_code}/Website/External/aec-senate-candidateinformation-#{election_code}.zip")
+        content = open("https://tallyroom.aec.gov.au/External/aec-senate-formalpreferences-#{election_code}-#{state}.zip")
 
         Zip::ZipFile.open(content) { |zip_file|
             zip_file.each { |f|
@@ -15,30 +15,62 @@ def download_candidates(election_code)
     end
 end
 
-def process_candidates(state, candidates_to_exclude)
+def process_candidates(election_code, state, candidates_to_exclude)
     candidates = Array.new
     cnt = 0
+    tik_cnt = 0
+    tik = 'A'
+    start = false
     
-    CSV.foreach("aec-senate-candidateinformation-#{election_code}.csv") do |row|
-        unless row[2] == state && row[1] == 'S'
-            next
+    CSV.foreach("aec-senate-formalpreferences-#{election_code}-#{state}.csv") do |row|
+        row.each_with_index do |c,i|
+            unless i > 10
+                next
+            end
+            
+            unless c.split(':').first == 'A' || start
+                next
+            end
+            start = true
+
+            if c.split(':').first == tik
+                tik_cnt += 1
+            else
+                tik_cnt = 1
+                tik = c.split(':').first
+            end
+            candidates << Candidate.new(cnt,c.split(':').first,tik_cnt,c.split(':').last.split(' ').first,nil,(candidates_to_exclude.include? (cnt + 1)))
+            cnt += 1
         end
-        candidates << Candidate.new(cnt,row[4],row[5],row[6],row[8],(candidates_to_exclude.include? (cnt + 1)))
-        cnt += 1
+        break
     end
     puts "There are #{candidates.count - candidates_to_exclude.count} candidates."
     return candidates
 end
 
-def process_tickets(candidates)
+def process_tickets(election_code,state)
     tickets = Array.new
 
-    candidates.each do |c|
-        if tickets.include?(c.ticket) || c.ticket == 'UG'
-            next
-        else
-            tickets << c.ticket
+    CSV.foreach("aec-senate-formalpreferences-#{election_code}-#{state}.csv") do |row|
+        tik = ''
+        row.each_with_index do |c,i|
+            unless i > 5
+                next
+            end
+
+            if c.split(':').first == 'A' && i > 12
+                break
+            end
+
+            if c.split(':').first == tik
+                next
+            else
+                # tickets << {c.split('_').first <= c.split('_').last}
+                tickets << c.split(':').first 
+                tik = c.split(':').first
+            end
         end
+        break
     end
     puts "There are #{tickets.count} tickets."
     return tickets

@@ -6,19 +6,19 @@ require_relative 'commands'
 require_relative 'ballot'
 require_relative 'candidates'
 
-state = 'QLD'
-candidates_to_elect = 12
-election_code = 20499
+state = 'TAS'
+candidates_to_elect = 6
+election_code = 24310
 
 ## Incase certain candidates need to be excluded before the count,
 ## add the below-the-line id of each here. Leave empty if no exclusions.
 candidates_to_exclude = []  #62,90
 ## BTL ballot papers
 
-download_candidates(election_code)
+download_candidates(election_code,state)
 download_results(election_code,state)
 
-ballot = setup(candidates_to_elect, state, candidates_to_exclude)
+ballot = setup(candidates_to_elect,election_code,state, candidates_to_exclude)
 
 round = 1
 puts "** COUNT #{round} **"

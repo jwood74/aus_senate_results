@@ -1,7 +1,6 @@
-def setup(candidates_to_elect, state, candidates_to_exclude)
-	ballot = Ballot.new(candidates_to_elect,state, candidates_to_exclude)
+def setup(candidates_to_elect, election_code, state, candidates_to_exclude)
+	ballot = Ballot.new(candidates_to_elect,election_code, state, candidates_to_exclude)
 
-	
 	ballot.process_atl_preferences
 	ballot.process_btl_first_preference
 	return ballot
@@ -24,7 +23,7 @@ def download_results(election_code,state)
 	end
 end
 
-def process_ballot_papers(state,tickets)
+def process_ballot_papers(election_code,state,tickets)
 	puts "Processing the ballot papers"
 
 	filename = "aec-senate-formalpreferences-#{election_code}-#{state}.csv"
@@ -34,13 +33,13 @@ def process_ballot_papers(state,tickets)
 	bar = ProgressBar.new(line_count - 2)
 
 	CSV.foreach(filename).with_index(1) do |row, ln|
-		if ln == 1 || ln == 2
+		if ln == 1 #|| ln == 2
 			next
 		end
 
 		# break if ln == 2000
 
-		b = BallotPaper.new(row[0],row[2],row[3],row[4],row[5],tickets)
+		b = BallotPaper.new(row[1],row[3],row[4],row[5],row[6..-1],tickets)
 		ballot_papers << b
 		bar.increment!
 
