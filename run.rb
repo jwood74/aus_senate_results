@@ -8,14 +8,15 @@ require_relative 'candidates'
 
 state = 'QLD'
 candidates_to_elect = 12
+election_code = 20499
 
 ## Incase certain candidates need to be excluded before the count,
 ## add the below-the-line id of each here. Leave empty if no exclusions.
 candidates_to_exclude = []  #62,90
 ## BTL ballot papers
 
-download_candidates
-download_results(state)
+download_candidates(election_code)
+download_results(election_code,state)
 
 ballot = setup(candidates_to_elect, state, candidates_to_exclude)
 

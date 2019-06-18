@@ -1,10 +1,10 @@
-def download_candidates
-    pn = Pathname.new("aec-senate-candidateinformation-20499.csv")
+def download_candidates(election_code)
+    pn = Pathname.new("aec-senate-candidateinformation-#{election_code}.csv")
 
     unless pn.exist?()
         require 'open-uri'
         require 'zip/zip'
-        content = open('https://results.aec.gov.au/20499/Website/External/aec-senate-candidateinformation-20499.zip')
+        content = open("https://results.aec.gov.au/#{election_code}/Website/External/aec-senate-candidateinformation-#{election_code}.zip")
 
         Zip::ZipFile.open(content) { |zip_file|
             zip_file.each { |f|
@@ -19,7 +19,7 @@ def process_candidates(state, candidates_to_exclude)
     candidates = Array.new
     cnt = 0
     
-    CSV.foreach("aec-senate-candidateinformation-20499.csv") do |row|
+    CSV.foreach("aec-senate-candidateinformation-#{election_code}.csv") do |row|
         unless row[2] == state && row[1] == 'S'
             next
         end

@@ -7,13 +7,13 @@ def setup(candidates_to_elect, state, candidates_to_exclude)
 	return ballot
 end
 
-def download_results(state)
-    pn = Pathname.new("aec-senate-formalpreferences-20499-#{state}.csv")
+def download_results(election_code,state)
+    pn = Pathname.new("aec-senate-formalpreferences-#{election_code}-#{state}.csv")
 
     unless pn.exist?()
         require 'open-uri'
         require 'zip/zip'
-        content = open("https://results.aec.gov.au/20499/Website/External/aec-senate-formalpreferences-20499-#{state}.zip")
+        content = open("https://results.aec.gov.au/#{election_code}/Website/External/aec-senate-formalpreferences-#{election_code}-#{state}.zip")
 
         Zip::ZipFile.open(content) { |zip_file|
             zip_file.each { |f|
@@ -27,7 +27,7 @@ end
 def process_ballot_papers(state,tickets)
 	puts "Processing the ballot papers"
 
-	filename = "aec-senate-formalpreferences-20499-#{state}.csv"
+	filename = "aec-senate-formalpreferences-#{election_code}-#{state}.csv"
 	line_count = `wc -l "#{filename}"`.strip.split(' ')[0].to_i
 
 	ballot_papers = Array.new
