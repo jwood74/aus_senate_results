@@ -201,7 +201,7 @@ def who_to_distribute(ballot,round)
 	end
 end
 
-def distribute_votes(ballot,round,candidate)
+def distribute_votes(ballot,round,candidate,tracking)
 	puts
 
     cnt = 0.0
@@ -259,6 +259,7 @@ def distribute_votes(ballot,round,candidate)
 		ballot.print_distributed_votes(round, candidate, x)
 		check_for_elected(ballot,round)
 		ballot.print_current_votes(round)
+		ballot.print_tagged_ballot(round,tracking)
 		export(ballot, round)	
 		break if end_condition(ballot, round)
 		round += 1
@@ -274,16 +275,14 @@ def distribute_votes(ballot,round,candidate)
 end
 
 def end_condition(ballot, round)
-	if ballot.pending_distribution == 1
-		if ballot.cur_candidate_count == (ballot.candidates_to_elect - ballot.candidates_elected)
-		  elect_remaining_candidates(ballot, round)
-		  return true
-		elsif ballot.cur_candidate_count == 2
-		  elect_leading_candidate(ballot, round)
-		  return true
-		end
+	if ballot.pending_distribution == 1 && ballot.cur_candidate_count == (ballot.candidates_to_elect - ballot.candidates_elected)
+		elect_remaining_candidates(ballot, round)
+		return true
+	elsif ballot.pending_distribution == 0 && ballot.cur_candidate_count == 2
+		elect_leading_candidate(ballot, round)
+		return true
 	elsif ballot.candidates_elected == ballot.candidates_to_elect
-			return true
+		return true
 	else
 		return false
 	end
@@ -325,6 +324,19 @@ def export(ballot,round,x = nil, candidate = nil)
 			votes << ballot.fraction_lost
 			votes << ""
 			outfile << votes
+		end
+	end
+end
+
+def export_target(round,value,candidate)
+	if round == 1
+		CSV.open("export_target.csv", "wb") do |csv|
+			csv << ['round','value','current_candidate']
+			csv << [round,value,candidate]
+		end
+	else
+		CSV.open("export_target.csv", 'ab') do |outfile|
+			outfile << [round,value,candidate]
 		end
 	end
 end

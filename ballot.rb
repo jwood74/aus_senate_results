@@ -162,6 +162,53 @@ class Ballot
 		puts "	#{frac.round} lost to fractions"
 		puts
 	end
+
+	def clean_tracking_pref(atl_pref, btl_pref)
+		result = Hash.new
+		if atl_pref.nil?
+			result['atl'] = nil
+		else
+			row = Array.new
+			atl_pref.each do |b|
+				if b.nil? || b.to_s.empty?
+					row << nil
+				else
+					row << b.to_i
+				end
+			end
+			result['atl'] = row
+		end
+
+		if btl_pref.nil?
+			result['btl'] = nil
+		else
+			row = Array.new
+			btl_pref.each do |b|
+				if b.nil? || b.empty?
+					row << nil
+				else
+					row << b.to_i
+				end
+			end
+			result['btl'] = row
+		end
+		return result
+	end
+
+	def print_tagged_ballot(round,tracking)
+		if tracking['atl'].nil? && tracking['btl'].nil?
+			return
+		end
+		self.votes.each do |v|
+			if (v.atl && v.atl == tracking['atl']) || (v.btl && v.btl == tracking['btl'])
+				puts "Your ballot-"
+				puts "currently with #{self.candidates[v.cur_candidate].surname}. Worth #{v.value}"
+				export_target(round,v.value,self.candidates[v.cur_candidate].surname)
+				puts
+			end
+			return
+		end
+	end
 end
 
 
