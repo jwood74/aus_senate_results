@@ -66,7 +66,7 @@ def check_for_elected(ballot,round)
 			if c.cur_votes == ballot.quota
 				c.distributed = true
 			else
-				ballot.pending_distribution += 1
+				ballot.pending_distribution += c.transfers.count
 			end
         end
     end
@@ -190,7 +190,7 @@ def who_to_distribute(ballot,round)
 
 		puts "Candidate #{lowest.first.surname} has the least votes. Their votes will now be distributed."
 		puts "Votes will be distributed in order of transfer value: #{lowest.first.transfers.to_s}"
-		ballot.pending_distribution += 1
+		ballot.pending_distribution += lowest.first.transfers.count
 		lowest.first.excluded = true
 		ballot.cur_candidate_count -= 1
 		lowest.first.elected_round = round - 1
@@ -257,6 +257,7 @@ def distribute_votes(ballot,round,candidate,tracking)
 		end
 
 		ballot.print_distributed_votes(round, candidate, x)
+		ballot.pending_distribution -= 1
 		check_for_elected(ballot,round)
 		ballot.print_current_votes(round)
 		ballot.print_tagged_ballot(round,tracking)
@@ -270,17 +271,18 @@ def distribute_votes(ballot,round,candidate,tracking)
 		end
 	end
 	candidate.distributed = true
-	ballot.pending_distribution -= 1
 	return round
 end
 
 def end_condition(ballot, round)
-	if ballot.pending_distribution == 1 && ballot.cur_candidate_count == (ballot.candidates_to_elect - ballot.candidates_elected)
-		elect_remaining_candidates(ballot, round)
-		return true
-	elsif ballot.pending_distribution == 0 && ballot.cur_candidate_count == 2
-		elect_leading_candidate(ballot, round)
-		return true
+	if ballot.pending_distribution == 0
+		if ballot.cur_candidate_count == (ballot.candidates_to_elect - ballot.candidates_elected)
+			elect_remaining_candidates(ballot, round)
+			return true
+		elsif ballot.cur_candidate_count == 2
+			elect_leading_candidate(ballot, round)
+			return true
+		end
 	elsif ballot.candidates_elected == ballot.candidates_to_elect
 		return true
 	else
