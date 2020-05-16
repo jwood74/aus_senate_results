@@ -4,6 +4,7 @@ Bundler.require
 
 require_relative 'commands'
 require_relative 'ballot'
+require_relative 'ballotpaper'
 require_relative 'candidates'
 
 state = 'VIC'
