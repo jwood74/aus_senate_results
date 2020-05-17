@@ -1,14 +1,14 @@
 def download_candidates(election_code,state)
-    pn = Pathname.new("aec-senate-formalpreferences-#{election_code}-#{state}.csv")
+    pn = Pathname.new("CSVs/aec-senate-formalpreferences-#{election_code}-#{state}.csv")
 
     unless pn.exist?()
         require 'open-uri'
         require 'zip/zip'
-        content = open("https://tallyroom.aec.gov.au/External/aec-senate-formalpreferences-#{election_code}-#{state}.zip")
+        content = open("https://results.aec.gov.au/#{election_code}/Website/External/aec-senate-formalpreferences-#{election_code}-#{state}.zip")
 
         Zip::ZipFile.open(content) { |zip_file|
             zip_file.each { |f|
-                zip_file.extract(f, f.name) unless File.exist?(f.name)
+                zip_file.extract(f, "CSVs/#{f.name}") unless File.exist?("CSVs/#{f.name}")
             }
         }
         puts "downloaded candidate list"
@@ -22,7 +22,7 @@ def process_candidates(election_code, state, candidates_to_exclude)
     tik = 'A'
     start = false
     
-    CSV.foreach("aec-senate-formalpreferences-#{election_code}-#{state}.csv") do |row|
+    CSV.foreach("CSVs/aec-senate-formalpreferences-#{election_code}-#{state}.csv") do |row|
         row.each_with_index do |c,i|
             unless i > 10
                 next
@@ -51,7 +51,7 @@ end
 def process_tickets(election_code,state)
     tickets = Array.new
 
-    CSV.foreach("aec-senate-formalpreferences-#{election_code}-#{state}.csv") do |row|
+    CSV.foreach("CSVs/aec-senate-formalpreferences-#{election_code}-#{state}.csv") do |row|
         tik = ''
         row.each_with_index do |c,i|
             unless i > 5
@@ -83,7 +83,7 @@ class Candidate
         @surname = surname
         @party = party
         @cur_votes = [0]
-        @cur_papers = 0
+        @cur_papers = []
         @excluded = exclude
         @elected = false
         @elected_order = 0

@@ -9,6 +9,7 @@ class Ballot
 		@candidates_elected = 0
 		@cur_candidate_count = @candidates.count - candidates_to_exclude.count
 		@current_exhaust = 0
+		@exhausted_votes = []
 		@fraction_lost = 0
 		@state = state
 		@pending_distribution = 0
@@ -16,7 +17,7 @@ class Ballot
 	end
 
 	attr_reader :quota, :tickets, :candidates_to_elect, :state, :candidates_to_exclude
-	attr_accessor :votes, :candidates, :candidates_elected, :current_exhaust, :current_total, :cur_candidate_count, :fraction_lost, :pending_distribution
+	attr_accessor :votes, :candidates, :candidates_elected, :current_exhaust, :exhausted_votes, :current_total, :cur_candidate_count, :fraction_lost, :pending_distribution
 
 	def calculate_quota
 		return (@current_total / (@candidates_to_elect + 1)) + 1
@@ -42,7 +43,7 @@ class Ballot
 					next
 				else
 					v.cur_candidate = v.btl.index(next_pref)
-					self.candidates[v.cur_candidate].cur_papers += 1
+					self.candidates[v.cur_candidate].cur_papers << v
 					self.candidates[v.cur_candidate].cur_votes[0] += 1
 					self.candidates[v.cur_candidate].transfers[1.0] += 1
 					break
@@ -101,7 +102,7 @@ class Ballot
 				next
 			end
 			tot += c.cur_votes.last
-			puts "  Candidate #{c.surname} is on #{c.cur_votes.last} votes (#{c.cur_papers} ballots). #{' ## elected ' + c.elected_order.to_s + ' ##' unless c.elected == false}"
+			puts "  Candidate #{c.surname} is on #{c.cur_votes.last} votes (#{c.cur_papers.count} ballots). #{' ## elected ' + c.elected_order.to_s + ' ##' unless c.elected == false}"
 		end
 		puts
 		puts "#{tot} votes remaining in count. #{self.current_exhaust} votes have exhausted (#{self.fraction_lost.round} lost to fractions). #{self.cur_candidate_count} candidates remaining. Current Quota - #{self.quota}"
