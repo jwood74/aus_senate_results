@@ -300,7 +300,7 @@ end
 
 def export(ballot,round,x = nil, candidate = nil)
 	if round == 1
-		CSV.open("export_#{ballot.state}.csv", "wb") do |csv|
+		CSV.open("CSVs/export_#{ballot.state}.csv", "wb") do |csv|
 			cands = ["round"]
 			votes = [round]
 			ballot.candidates.each do |c|
@@ -314,7 +314,7 @@ def export(ballot,round,x = nil, candidate = nil)
 			csv << votes
 		end
 	elsif x
-		CSV.open("export_#{ballot.state}.csv", 'ab') do |outfile|
+		CSV.open("CSVs/export_#{ballot.state}.csv", 'ab') do |outfile|
 			votes = [candidate]
 			ballot.candidates.each do |c|
 				votes << c.recent_round_count
@@ -325,7 +325,7 @@ def export(ballot,round,x = nil, candidate = nil)
 			outfile << votes
 		end
 	else
-		CSV.open("export_#{ballot.state}.csv", 'ab') do |outfile|
+		CSV.open("CSVs/export_#{ballot.state}.csv", 'ab') do |outfile|
 			votes = [round]
 			ballot.candidates.each do |c|
 				votes << c.cur_votes.last
@@ -340,12 +340,12 @@ end
 
 def export_target(round,value,candidate)
 	if round == 1
-		CSV.open("export_target.csv", "wb") do |csv|
+		CSV.open("CSVs/export_target.csv", "wb") do |csv|
 			csv << ['round','value','current_candidate']
 			csv << [round,value,candidate]
 		end
 	else
-		CSV.open("export_target.csv", 'ab') do |outfile|
+		CSV.open("CSVs/export_target.csv", 'ab') do |outfile|
 			outfile << [round,value,candidate]
 		end
 	end
