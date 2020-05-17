@@ -1,14 +1,13 @@
-def setup(candidates_to_elect, state, candidates_to_exclude)
-	ballot = Ballot.new(candidates_to_elect,state, candidates_to_exclude)
+def setup(candidates_to_elect, election_code, state, candidates_to_exclude)
+	ballot = Ballot.new(candidates_to_elect,election_code, state, candidates_to_exclude)
 
-	
 	ballot.process_atl_preferences
 	ballot.process_btl_first_preference
 	return ballot
 end
 
 def download_results(election_code,state)
-    pn = Pathname.new("aec-senate-formalpreferences-#{election_code}-#{state}.csv")
+    pn = Pathname.new("CSVs/aec-senate-formalpreferences-#{election_code}-#{state}.csv")
 
     unless pn.exist?()
         require 'open-uri'
@@ -24,23 +23,23 @@ def download_results(election_code,state)
 	end
 end
 
-def process_ballot_papers(state,tickets)
+def process_ballot_papers(election_code,state,tickets)
 	puts "Processing the ballot papers"
 
-	filename = "aec-senate-formalpreferences-#{election_code}-#{state}.csv"
+	filename = "CSVs/aec-senate-formalpreferences-#{election_code}-#{state}.csv"
 	line_count = `wc -l "#{filename}"`.strip.split(' ')[0].to_i
 
 	ballot_papers = Array.new
 	bar = ProgressBar.new(line_count - 2)
 
 	CSV.foreach(filename).with_index(1) do |row, ln|
-		if ln == 1 || ln == 2
+		if ln == 1 #|| ln == 2
 			next
 		end
 
 		# break if ln == 2000
 
-		b = BallotPaper.new(row[0],row[2],row[3],row[4],row[5],tickets)
+		b = BallotPaper.new(row[1],row[3],row[4],row[5],row[6..-1],tickets)
 		ballot_papers << b
 		bar.increment!
 
@@ -51,6 +50,7 @@ def process_ballot_papers(state,tickets)
 end
 
 def check_for_elected(ballot,round)
+	elected = 0
     display_candidates = ballot.candidates.sort_by { |x| x.cur_votes.last }.reverse
  
     display_candidates.each do |c|
@@ -58,7 +58,8 @@ def check_for_elected(ballot,round)
             next
         end
         if c.cur_votes.last >= ballot.quota
-            c.elected = true
+			c.elected = true
+			elected += 1
             ballot.candidates_elected += 1
 			c.elected_order = ballot.candidates_elected
 			c.elected_round = round
@@ -67,10 +68,11 @@ def check_for_elected(ballot,round)
 			if c.cur_votes == ballot.quota
 				c.distributed = true
 			else
-				ballot.pending_distribution += 1
+				ballot.pending_distribution += c.transfers.count
 			end
         end
-    end
+	end
+	return elected
 end
 
 def elect_remaining_candidates(ballot,round)
@@ -103,11 +105,11 @@ def elect_leading_candidate(ballot,round)
 			c.elected_round = round
 			puts "Candidate #{c.surname} has been elected (In accordance with s273(17))."
 			ballot.cur_candidate_count -= 1
-		else
-			c.excluded = true
-			c.elected_order = ballot.candidates.count - ballot.cur_candidate_count - ballot.candidates_elected
-			c.elected_round = round
-			ballot.cur_candidate_count -= 1
+		# else
+		# 	c.excluded = true
+		# 	c.elected_order = ballot.candidates.count - ballot.cur_candidate_count - ballot.candidates_elected
+		# 	c.elected_round = round
+		# 	ballot.cur_candidate_count -= 1
 		end
 	end
 end
@@ -191,7 +193,7 @@ def who_to_distribute(ballot,round)
 
 		puts "Candidate #{lowest.first.surname} has the least votes. Their votes will now be distributed."
 		puts "Votes will be distributed in order of transfer value: #{lowest.first.transfers.to_s}"
-		ballot.pending_distribution += 1
+		ballot.pending_distribution += lowest.first.transfers.count
 		lowest.first.excluded = true
 		ballot.cur_candidate_count -= 1
 		lowest.first.elected_round = round - 1
@@ -202,7 +204,7 @@ def who_to_distribute(ballot,round)
 	end
 end
 
-def distribute_votes(ballot,round,candidate)
+def distribute_votes(ballot,round,candidate,tracking)
 	puts
 
     cnt = 0.0
@@ -211,16 +213,16 @@ def distribute_votes(ballot,round,candidate)
 	vote_values = candidate.transfers.keys.sort.reverse
 
 	vote_values.each do |x|
-		bar = ProgressBar.new(ballot.votes.count)
+		bar = ProgressBar.new(candidate.cur_papers.count)
 
 		if candidate.elected
-			x = (candidate.cur_votes.last - ballot.quota).to_f / candidate.cur_papers
+			x = (candidate.cur_votes.last - ballot.quota).to_f / candidate.cur_papers.count
 		end
 
 		puts "Distributing the votes of #{candidate.surname}."
 		puts "Transfer Value = #{x.round(2)}"
 
-		ballot.votes.each do |v|
+		candidate.cur_papers.each do |v|
 			bar.increment!
 			next unless v.cur_candidate == candidate.order
 			next if v.is_exhaust
@@ -229,13 +231,14 @@ def distribute_votes(ballot,round,candidate)
 				next unless v.value == x
 			end
 
-			ballot.candidates[v.cur_candidate].cur_papers -= 1
+			# ballot.candidates[v.cur_candidate].cur_papers -= 1
 			candidate.recent_round_count -= 1
 			cur_pref = v.btl[candidate.order]
 
 			ballot.candidates.count.times do |t|
 				next_pref = (cur_pref + 1 + t)
 				if not v.btl.count(next_pref) == 1
+					ballot.exhausted_votes << v
 					v.is_exhaust = true
 					v.cur_candidate = nil
 					v.round_last_updated = round
@@ -245,7 +248,7 @@ def distribute_votes(ballot,round,candidate)
 					next
 				else
 					v.cur_candidate = v.btl.index(next_pref)
-					ballot.candidates[v.cur_candidate].cur_papers += 1
+					ballot.candidates[v.cur_candidate].cur_papers << v
 					ballot.candidates[v.cur_candidate].recent_round_count += 1
 					v.round_last_updated = round
 					if candidate.elected
@@ -257,11 +260,19 @@ def distribute_votes(ballot,round,candidate)
 
 		end
 
+		if candidate.excluded
+			candidate.cur_papers.delete_if {|v| v.value == x}
+		else
+			candidate.cur_papers = []
+		end
+
 		ballot.print_distributed_votes(round, candidate, x)
-		check_for_elected(ballot,round)
+		ballot.pending_distribution -= 1
+		elected = check_for_elected(ballot,round)
 		ballot.print_current_votes(round)
-		export(ballot, round)	
-		break if end_condition(ballot, round)
+		ballot.print_tagged_ballot(round,tracking)
+		export(ballot, round)
+		break if end_condition(ballot, round, candidate, elected)
 		round += 1
 		puts "** COUNT #{round} **"
 
@@ -270,21 +281,18 @@ def distribute_votes(ballot,round,candidate)
 		end
 	end
 	candidate.distributed = true
-	ballot.pending_distribution -= 1
 	return round
 end
 
-def end_condition(ballot, round)
-	if ballot.pending_distribution == 1
-		if ballot.cur_candidate_count == (ballot.candidates_to_elect - ballot.candidates_elected)
-		  elect_remaining_candidates(ballot, round)
-		  return true
-		elsif ballot.cur_candidate_count == 2
-		  elect_leading_candidate(ballot, round)
-		  return true
-		end
+def end_condition(ballot, round, candidate, elected)
+	if ballot.pending_distribution == 0 && ballot.cur_candidate_count == (ballot.candidates_to_elect - ballot.candidates_elected)
+		elect_remaining_candidates(ballot, round)
+		return true
+	elsif ballot.cur_candidate_count == 2 && ((candidate.elected && elected == 0) || (candidate.excluded && candidate.cur_papers.count == 0))
+		elect_leading_candidate(ballot, round)
+		return true
 	elsif ballot.candidates_elected == ballot.candidates_to_elect
-			return true
+		return true
 	else
 		return false
 	end
@@ -326,6 +334,19 @@ def export(ballot,round,x = nil, candidate = nil)
 			votes << ballot.fraction_lost
 			votes << ""
 			outfile << votes
+		end
+	end
+end
+
+def export_target(round,value,candidate)
+	if round == 1
+		CSV.open("export_target.csv", "wb") do |csv|
+			csv << ['round','value','current_candidate']
+			csv << [round,value,candidate]
+		end
+	else
+		CSV.open("export_target.csv", 'ab') do |outfile|
+			outfile << [round,value,candidate]
 		end
 	end
 end

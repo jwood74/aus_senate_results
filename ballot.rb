@@ -1,14 +1,15 @@
 class Ballot
-	def initialize(candidates_to_elect, state, candidates_to_exclude)
-		@candidates = process_candidates(state, candidates_to_exclude)
-		@tickets = process_tickets(@candidates)
-		@votes = process_ballot_papers(state,tickets.count)
+	def initialize(candidates_to_elect, election_code,state, candidates_to_exclude)
+		@candidates = process_candidates(election_code,state, candidates_to_exclude)
+		@tickets = process_tickets(election_code, state)
+		@votes = process_ballot_papers(election_code,state,tickets.count)
 		@current_total = @votes.count
 		@candidates_to_elect = candidates_to_elect
 		@quota = calculate_quota
 		@candidates_elected = 0
 		@cur_candidate_count = @candidates.count - candidates_to_exclude.count
 		@current_exhaust = 0
+		@exhausted_votes = []
 		@fraction_lost = 0
 		@state = state
 		@pending_distribution = 0
@@ -16,7 +17,7 @@ class Ballot
 	end
 
 	attr_reader :quota, :tickets, :candidates_to_elect, :state, :candidates_to_exclude
-	attr_accessor :votes, :candidates, :candidates_elected, :current_exhaust, :current_total, :cur_candidate_count, :fraction_lost, :pending_distribution
+	attr_accessor :votes, :candidates, :candidates_elected, :current_exhaust, :exhausted_votes, :current_total, :cur_candidate_count, :fraction_lost, :pending_distribution
 
 	def calculate_quota
 		return (@current_total / (@candidates_to_elect + 1)) + 1
@@ -42,7 +43,7 @@ class Ballot
 					next
 				else
 					v.cur_candidate = v.btl.index(next_pref)
-					self.candidates[v.cur_candidate].cur_papers += 1
+					self.candidates[v.cur_candidate].cur_papers << v
 					self.candidates[v.cur_candidate].cur_votes[0] += 1
 					self.candidates[v.cur_candidate].transfers[1.0] += 1
 					break
@@ -101,7 +102,7 @@ class Ballot
 				next
 			end
 			tot += c.cur_votes.last
-			puts "  Candidate #{c.surname} is on #{c.cur_votes.last} votes (#{c.cur_papers} ballots). #{' ## elected ' + c.elected_order.to_s + ' ##' unless c.elected == false}"
+			puts "  Candidate #{c.surname} is on #{c.cur_votes.last} votes (#{c.cur_papers.count} ballots). #{' ## elected ' + c.elected_order.to_s + ' ##' unless c.elected == false}"
 		end
 		puts
 		puts "#{tot} votes remaining in count. #{self.current_exhaust} votes have exhausted (#{self.fraction_lost.round} lost to fractions). #{self.cur_candidate_count} candidates remaining. Current Quota - #{self.quota}"
@@ -162,64 +163,51 @@ class Ballot
 		puts "	#{frac.round} lost to fractions"
 		puts
 	end
-end
 
-
-class BallotPaper
-	def initialize(elec,booth_id,batch,paper,prefs,tickets)
-		@elec = elec
-		@booth_id = booth_id.to_i
-		@batch = batch.to_i
-		@paper = paper.to_i
-		@btl = fix_pref(prefs.split(",")[tickets..-1])
-		@atl = fix_pref(prefs.split(",")[0..(tickets - 1)])
-		@btl_formal = check_btl_formal
-		@atl_formal = check_atl_formal
-		@cur_candidate = nil
-		@is_exhaust = false
-		@value = 1.0
-		@round_last_updated = 1
-	end
-
-	attr_reader :btl_formal, :paper, :batch, :atl_formal, :atl
-	attr_accessor :cur_candidate, :is_exhaust, :value, :btl, :round_last_updated
-
-	def fix_pref(pref)
-		result = Array.new
-		if pref.nil?
-			return nil
+	def clean_tracking_pref(atl_pref, btl_pref)
+		result = Hash.new
+		if atl_pref.nil?
+			result['atl'] = nil
 		else
-			pref.each do |b|
-				if b.empty?
-					result << nil
-				elsif b == '*' || b == '/'
-					result << 1
+			row = Array.new
+			atl_pref.each do |b|
+				if b.nil? || b.to_s.empty?
+					row << nil
 				else
-					result << b.to_i
+					row << b.to_i
 				end
 			end
-			return result
+			result['atl'] = row
 		end
 
-	end
-
-	def check_btl_formal
-		if btl.nil?
-			return false
-		elsif  btl.count(1) == 1 && self.btl.count(2) == 1 && self.btl.count(3) == 1 && self.btl.count(4) == 1 && self.btl.count(5) == 1 && self.btl.count(6) == 1
-			return true
+		if btl_pref.nil?
+			result['btl'] = nil
 		else
-			return false
+			row = Array.new
+			btl_pref.each do |b|
+				if b.nil? || b.empty?
+					row << nil
+				else
+					row << b.to_i
+				end
+			end
+			result['btl'] = row
 		end
+		return result
 	end
 
-	def check_atl_formal
-		if self.btl_formal
-			return false
-		elsif self.atl.count(1) == 1
-			return true
-		else
-			return false
+	def print_tagged_ballot(round,tracking)
+		if tracking['atl'].nil? && tracking['btl'].nil?
+			return
+		end
+		self.votes.each do |v|
+			if (v.atl && v.atl == tracking['atl']) || (v.btl && v.btl == tracking['btl'])
+				puts "Your ballot-"
+				puts "currently with #{self.candidates[v.cur_candidate].surname}. Worth #{v.value}"
+				export_target(round,v.value,self.candidates[v.cur_candidate].surname)
+				puts
+			end
+			return
 		end
 	end
 end
