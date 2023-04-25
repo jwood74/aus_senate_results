@@ -11,7 +11,6 @@ require_relative 'candidates'
 state = 'ACT'
 candidates_to_elect = 2
 election_code = 27_966
-# election_code = 24_310
 
 ## Incase certain candidates need to be excluded before the count,
 ## add the below-the-line id of each here. Leave empty if no exclusions.
